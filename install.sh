@@ -21,7 +21,7 @@ fi
 sudo pacman -Syu --needed "${packages[@]}"
 
 mkdir -p "$BACKUP_DIR"
-for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
+for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d systemd; do
   if [[ -d "$CONFIG_DIR/$dir" ]]; then
     mv "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
   fi
@@ -50,6 +50,12 @@ MOZ_ENABLE_WAYLAND=1
 ELECTRON_OZONE_PLATFORM_HINT=auto
 EOF
 
+# Remember where this checkout lives so the background updater can pull it.
+mkdir -p "$CONFIG_DIR/pulse"
+cat > "$CONFIG_DIR/pulse/pulse.conf" <<EOF
+PULSE_REPO_DIR=$REPO_DIR
+EOF
+
 # Optional environment integrations.
 if command -v starship >/dev/null 2>&1; then
   touch "$HOME/.bashrc"
@@ -67,13 +73,21 @@ Terminal=false
 X-GNOME-Autostart-enabled=true
 EOF
 
+# Enable the Pulse updater even when the installer is run from a TTY without
+# a user D-Bus session. systemd will start the timer on the next user login.
+timer_dir="$CONFIG_DIR/systemd/user/timers.target.wants"
+mkdir -p "$timer_dir"
+ln -sfn ../pulse-update.timer "$timer_dir/pulse-update.timer"
+
 # Only talk to the user systemd instance when this shell is already inside a
 # graphical/logind session. A TTY installer should not emit a D-Bus failure.
 if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+  systemctl --user daemon-reload || true
+  systemctl --user enable --now pulse-update.timer || true
   systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
 else
-  echo "Skipping user PipeWire activation: no user D-Bus session is available."
-  echo "It will be available automatically after logging into the Pulse session."
+  echo "Skipping immediate user-systemd activation: no user D-Bus session is available."
+  echo "The Pulse updater is enabled and will start with the next user session."
 fi
 
 sudo systemctl enable --now NetworkManager.service || true
@@ -84,6 +98,12 @@ cat <<EOF
 
 Pulse-Ware installed.
 Backup: $BACKUP_DIR
+
+AUTO UPDATE:
+  Pulse checks the GitHub main branch every 30 minutes.
+  Updates are fast-forward-only and local repo changes are never overwritten.
+  Updated config files are applied automatically after a successful pull.
+  Update log: ~/.local/state/pulse/update.log
 
 Your previous Hyprland launch failed because XDG_RUNTIME_DIR was not set.
 The installer now configures it and provides a safe launcher.
