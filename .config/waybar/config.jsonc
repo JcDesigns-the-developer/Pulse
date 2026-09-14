@@ -1,19 +1,32 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 34,
-  "spacing": 6,
-  "modules-left": ["hyprland/workspaces", "hyprland/window"],
+  "height": 38,
+  "spacing": 5,
+  "modules-left": ["custom/start", "hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],
-  "modules-right": ["pulseaudio", "network", "cpu", "memory", "battery", "tray"],
+  "modules-right": ["custom/media", "pulseaudio", "network", "cpu", "memory", "battery", "tray"],
 
+  "custom/start": {
+    "format": "󰣇  Start",
+    "tooltip": "Pulse application menu",
+    "on-click": "~/.local/bin/pulse-start",
+    "on-click-right": "~/.local/bin/pulse-menu"
+  },
   "hyprland/workspaces": {
     "format": "{icon}",
     "format-icons": {"active": "●", "default": "○"},
     "persistent-workspaces": {"*": 5}
   },
-  "hyprland/window": {"format": "{}", "max-length": 60},
+  "hyprland/window": {"format": "{}", "max-length": 50},
   "clock": {"format": "󰥔  {:%a %d %b  %H:%M}", "tooltip-format": "{:%A, %B %d %Y}\nWeek %V"},
+  "custom/media": {
+    "format": "{}",
+    "exec": "playerctl metadata --format='󰎆  {{artist}} — {{title}}' 2>/dev/null || true",
+    "interval": 2,
+    "max-length": 40,
+    "on-click": "playerctl play-pause"
+  },
   "cpu": {"format": "󰍛 {usage}%", "interval": 2},
   "memory": {"format": "󰘚 {percentage}%", "interval": 2},
   "battery": {"format": "󰁹 {capacity}%", "format-charging": "󰂄 {capacity}%", "states": {"warning": 25, "critical": 10}},
