@@ -21,7 +21,7 @@ fi
 sudo pacman -Syu --needed "${packages[@]}"
 
 mkdir -p "$BACKUP_DIR"
-for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 qt5ct; do
+for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d; do
   if [[ -d "$CONFIG_DIR/$dir" ]]; then
     mv "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
   fi
@@ -36,8 +36,23 @@ fi
 
 mkdir -p "$HOME/Pictures/Screenshots"
 
+# XDG_RUNTIME_DIR is normally provided by systemd-logind. The generated
+# environment file makes the value explicit for the user's next graphical
+# session without hard-coding a UID into the Hyprland config.
+uid="$(id -u)"
+mkdir -p "$CONFIG_DIR/environment.d"
+cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<EOF
+XDG_RUNTIME_DIR=/run/user/$uid
+XDG_SESSION_TYPE=wayland
+XDG_CURRENT_DESKTOP=Hyprland
+DESKTOP_SESSION=hyprland
+MOZ_ENABLE_WAYLAND=1
+ELECTRON_OZONE_PLATFORM_HINT=auto
+EOF
+
 # Optional environment integrations.
 if command -v starship >/dev/null 2>&1; then
+  touch "$HOME/.bashrc"
   grep -qxF 'eval "$(starship init bash)"' "$HOME/.bashrc" 2>/dev/null || echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
 fi
 
@@ -57,7 +72,17 @@ sudo systemctl enable --now NetworkManager.service || true
 
 chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null || true
 
-echo
-echo "Pulse-Ware installed."
-echo "Backup: $BACKUP_DIR"
-echo "Log out and select Hyprland, then log back in."
+cat <<EOF
+
+Pulse-Ware installed.
+Backup: $BACKUP_DIR
+
+IMPORTANT:
+Your previous launch failed because XDG_RUNTIME_DIR was not set.
+Log out and back in so systemd/logind provides the graphical runtime session.
+
+After logging back in, launch Hyprland normally, or use:
+  pulse-session
+
+Do NOT manually create /run/user/$uid; systemd owns that directory.
+EOF
