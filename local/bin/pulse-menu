@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice=$(printf '%s\n' \
+  '󰣇 Applications' \
+  '󰤄 Lock' \
+  '󰍃 Logout' \
+  '󰗼 Reboot' \
+  '󰐥 Shutdown' | rofi -dmenu -p 'Pulse')
+
+case "$choice" in
+  *Applications) rofi -show drun ;;
+  *Lock) hyprlock ;;
+  *Logout) hyprctl dispatch exit ;;
+  *Reboot) systemctl reboot ;;
+  *Shutdown) systemctl poweroff ;;
+esac
