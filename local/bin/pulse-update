@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_DIR="$HOME/.config"
+ENV_FILE="$CONFIG_DIR/pulse/pulse.conf"
+LOG_DIR="$HOME/.local/state/pulse"
+LOG_FILE="$LOG_DIR/update.log"
+
+mkdir -p "$LOG_DIR"
+exec >>"$LOG_FILE" 2>&1
+
+echo
+printf '[%s] Pulse-Ware auto-update check\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+fi
+
+REPO_DIR="${PULSE_REPO_DIR:-$HOME/Pulse}"
+
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+  echo "Repository not found: $REPO_DIR"
+  exit 0
+fi
+
+cd "$REPO_DIR"
+
+# Never destroy local work. A dirty checkout is left alone until it is clean.
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Local changes detected; skipping update."
+  exit 0
+fi
+
+before="$(git rev-parse HEAD)"
+if ! git fetch --quiet origin main; then
+  echo "Could not contact GitHub; will retry later."
+  exit 0
+fi
+
+local="$(git rev-parse HEAD)"
+remote="$(git rev-parse origin/main)"
+
+if [[ "$local" == "$remote" ]]; then
+  echo "Already up to date."
+  exit 0
+fi
+
+# Only accept a clean fast-forward from the configured main branch.
+if ! git merge-base --is-ancestor "$local" "$remote"; then
+  echo "Remote history diverged; refusing automatic update."
+  exit 0
+fi
+
+git merge --ff-only origin/main
+
+echo "Updated $before -> $(git rev-parse HEAD)"
+
+# Apply the repository's desktop configuration to the live user config.
+# Do not delete files outside the Pulse repo; this keeps unrelated user config safe.
+if [[ -d "$REPO_DIR/.config" ]]; then
+  cp -a "$REPO_DIR/.config/." "$CONFIG_DIR/"
+fi
+
+mkdir -p "$HOME/.local/bin"
+if [[ -d "$REPO_DIR/local/bin" ]]; then
+  cp -a "$REPO_DIR/local/bin/." "$HOME/.local/bin/"
+  chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
+fi
+
+chmod +x "$HOME/.local/bin/pulse-"* 2>/dev/null || true
+
+echo "Pulse-Ware configuration updated."
