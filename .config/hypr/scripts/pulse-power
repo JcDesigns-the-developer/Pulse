@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice=$(printf 'Lock\nSuspend\nLogout\nReboot\nShutdown' | rofi -dmenu -p 'Power')
+case "$choice" in
+  Lock) hyprlock ;;
+  Suspend) systemctl suspend ;;
+  Logout) hyprctl dispatch exit ;;
+  Reboot) systemctl reboot ;;
+  Shutdown) systemctl poweroff ;;
+esac
