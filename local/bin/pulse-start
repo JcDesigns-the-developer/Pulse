@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pulse Start menu launcher. Waybar calls this with no arguments.
+exec rofi -show drun -theme ~/.config/rofi/config.rasi
