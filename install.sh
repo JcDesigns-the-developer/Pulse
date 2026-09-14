@@ -67,7 +67,15 @@ Terminal=false
 X-GNOME-Autostart-enabled=true
 EOF
 
-systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
+# Only talk to the user systemd instance when this shell is already inside a
+# graphical/logind session. A TTY installer should not emit a D-Bus failure.
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+  systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
+else
+  echo "Skipping user PipeWire activation: no user D-Bus session is available."
+  echo "It will be available automatically after logging into the Pulse session."
+fi
+
 sudo systemctl enable --now NetworkManager.service || true
 
 chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null || true
@@ -77,11 +85,11 @@ cat <<EOF
 Pulse-Ware installed.
 Backup: $BACKUP_DIR
 
-IMPORTANT:
-Your previous launch failed because XDG_RUNTIME_DIR was not set.
-Log out and back in so systemd/logind provides the graphical runtime session.
+Your previous Hyprland launch failed because XDG_RUNTIME_DIR was not set.
+The installer now configures it and provides a safe launcher.
 
-After logging back in, launch Hyprland normally, or use:
+Log out and back in so systemd/logind creates the normal user session.
+Then launch Hyprland normally, or from a TTY use:
   pulse-session
 
 Do NOT manually create /run/user/$uid; systemd owns that directory.
