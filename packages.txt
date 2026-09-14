@@ -1,7 +1,9 @@
+# Pulse-Ware core packages — official Arch repositories only
 hyprland
 waybar
 rofi-wayland
 kitty
+ranger
 mako
 hyprlock
 hypridle
@@ -26,6 +28,6 @@ fastfetch
 cava
 starship
 papirus-icon-theme
-bibata-cursor-theme
+adwaita-cursors
 noto-fonts
 noto-fonts-emoji
