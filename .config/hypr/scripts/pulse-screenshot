@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p "$HOME/Pictures/Screenshots"
+file="$HOME/Pictures/Screenshots/pulse-$(date +%Y%m%d-%H%M%S).png"
+
+mode=$(printf 'Area\nFullscreen\nWindow' | rofi -dmenu -p 'Screenshot')
+case "$mode" in
+  Area) grim -g "$(slurp)" "$file" ;;
+  Fullscreen) grim "$file" ;;
+  Window) grim -g "$(hyprctl -j activewindow | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' | sed 's/,/ /' | sed 's/ /,/1' | sed 's/ /,/2')" "$file" 2>/dev/null || grim "$file" ;;
+esac
+notify-send 'Pulse-Ware' "Screenshot saved to $file"
