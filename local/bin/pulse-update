@@ -6,11 +6,41 @@ ENV_FILE="$CONFIG_DIR/pulse/pulse.conf"
 LOG_DIR="$HOME/.local/state/pulse"
 LOG_FILE="$LOG_DIR/update.log"
 
+MODE="update"
+for arg in "$@"; do
+  case "$arg" in
+    -u|--update|-update) MODE="update" ;;
+    -f|--fix|-fix|-fix/update) MODE="fix" ;;
+    -h|--help|-help)
+      cat <<'EOF'
+Pulse-Ware updater
+
+Usage:
+  pulse-update                 Check for and install normal updates
+  pulse-update -update         Same as the normal update
+  pulse-update -fix            Force-repair the installed Pulse configuration
+  pulse-update -fix/update     Update the repo, then repair ALL Pulse-managed files
+  pulse-update --fix           Same as -fix
+
+Fix mode is intended for older Pulse installations. It refreshes the live
+configuration from the current main branch and repairs stale/deprecated files.
+A timestamped backup is created before the live configuration is replaced.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Run 'pulse-update --help' for usage."
+      exit 2
+      ;;
+  esac
+done
+
 mkdir -p "$LOG_DIR"
 exec >>"$LOG_FILE" 2>&1
 
 echo
-printf '[%s] Pulse-Ware auto-update check\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+printf '[%s] Pulse-Ware %s check\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$MODE"
 
 if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090
@@ -21,53 +51,73 @@ REPO_DIR="${PULSE_REPO_DIR:-$HOME/Pulse}"
 
 if [[ ! -d "$REPO_DIR/.git" ]]; then
   echo "Repository not found: $REPO_DIR"
-  exit 0
+  exit 1
 fi
 
 cd "$REPO_DIR"
 
-# Never destroy local work. A dirty checkout is left alone until it is clean.
+# A fix/update must never silently destroy uncommitted repository work.
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Local changes detected; skipping update."
-  exit 0
+  echo "Local changes detected in $REPO_DIR; refusing automatic update."
+  echo "Commit/stash those changes first, then run pulse-update -fix/update again."
+  exit 1
 fi
 
 before="$(git rev-parse HEAD)"
 if ! git fetch --quiet origin main; then
   echo "Could not contact GitHub; will retry later."
-  exit 0
+  exit 1
 fi
 
 local="$(git rev-parse HEAD)"
 remote="$(git rev-parse origin/main)"
 
-if [[ "$local" == "$remote" ]]; then
-  echo "Already up to date."
-  exit 0
+if [[ "$local" != "$remote" ]]; then
+  if ! git merge-base --is-ancestor "$local" "$remote"; then
+    echo "Remote history diverged; refusing automatic update."
+    exit 1
+  fi
+  git merge --ff-only origin/main
+  echo "Repository updated $before -> $(git rev-parse HEAD)"
+else
+  echo "Repository is already current."
 fi
 
-# Only accept a clean fast-forward from the configured main branch.
-if ! git merge-base --is-ancestor "$local" "$remote"; then
-  echo "Remote history diverged; refusing automatic update."
-  exit 0
+# In normal mode, only apply the current repository state after an update.
+# In fix mode, always apply it, even when the repository was already current.
+if [[ "$MODE" == "fix" || "$MODE" == "update" ]]; then
+  BACKUP_DIR="$HOME/.config/pulse-fix-backup-$(date +%Y%m%d-%H%M%S)"
+
+  # Fix mode is specifically for stale/broken installs, so preserve the live
+  # Pulse-managed configuration before replacing it.
+  if [[ "$MODE" == "fix" ]]; then
+    mkdir -p "$BACKUP_DIR"
+    for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d pulse; do
+      if [[ -e "$CONFIG_DIR/$dir" ]]; then
+        cp -a "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
+      fi
+    done
+    echo "Live configuration backup: $BACKUP_DIR"
+  fi
+
+  # Sync every Pulse-managed config at once. cp -a also handles files added in
+  # newer revisions, which is important for migrating older installations.
+  if [[ -d "$REPO_DIR/.config" ]]; then
+    mkdir -p "$CONFIG_DIR"
+    cp -a "$REPO_DIR/.config/." "$CONFIG_DIR/"
+  fi
+
+  mkdir -p "$HOME/.local/bin"
+  if [[ -d "$REPO_DIR/local/bin" ]]; then
+    cp -a "$REPO_DIR/local/bin/." "$HOME/.local/bin/"
+    chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
+  fi
+
+  chmod +x "$HOME/.local/bin/pulse-"* 2>/dev/null || true
+
+  if [[ "$MODE" == "fix" ]]; then
+    echo "ALL Pulse-managed configuration has been repaired from main."
+  else
+    echo "Pulse-Ware configuration is current."
+  fi
 fi
-
-git merge --ff-only origin/main
-
-echo "Updated $before -> $(git rev-parse HEAD)"
-
-# Apply the repository's desktop configuration to the live user config.
-# Do not delete files outside the Pulse repo; this keeps unrelated user config safe.
-if [[ -d "$REPO_DIR/.config" ]]; then
-  cp -a "$REPO_DIR/.config/." "$CONFIG_DIR/"
-fi
-
-mkdir -p "$HOME/.local/bin"
-if [[ -d "$REPO_DIR/local/bin" ]]; then
-  cp -a "$REPO_DIR/local/bin/." "$HOME/.local/bin/"
-  chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
-fi
-
-chmod +x "$HOME/.local/bin/pulse-"* 2>/dev/null || true
-
-echo "Pulse-Ware configuration updated."
