@@ -1,32 +1,64 @@
-# Pulse
+# Pulse Ghost
 
-A complete, desktop-first Hyprland environment by **JcDesigns**.
+A full desktop-first Hyprland environment by **JcDesigns**.
 
-Pulse is built to feel like an actual operating-system desktop instead of a pile of disconnected dotfiles. It combines Hyprland, Waybar, Rofi, Kitty, Mako, Hyprlock, Hypridle, GTK/Qt integration, wallpapers, shell tools, diagnostics, and an updater into one manageable installation.
+Pulse is not meant to be a screenshot-only rice. It is a maintainable desktop layer built around the current Hyprland Lua configuration model, with Waybar, Rofi, Kitty, Mako, Hyprlock, Hypridle, PipeWire, NetworkManager/iwd, wallpapers, diagnostics, repair tools, and automatic updates.
 
-The architecture is inspired by the useful parts of projects such as Hyprland Material You and Spelljinxer's dotfiles: a clean component layout, a dedicated control layer, and a session that can be maintained as one desktop. Pulse keeps its own black/red, practical, classic/hacker-desktop identity rather than copying their visual styles.
+The visual identity is deliberately simple:
 
-## What Pulse includes
+> **Black. White. Anime ghost.**
 
-- Hyprland desktop configuration
+No Material You rainbow palette. No generic gray template. No unnecessary UI clutter.
+
+## Current architecture
+
+Pulse targets modern Hyprland and uses `~/.config/hypr/hyprland.lua` as the main entry point. Hyprland 0.55+ uses Lua as the preferred configuration language, so each concern is isolated into a module instead of one giant configuration file.
+
+```text
+.config/hypr/
+├── hyprland.lua
+├── hypridle.conf
+├── hyprlock.conf
+├── pulse/
+│   ├── theme.lua
+│   ├── env.lua
+│   ├── settings.lua
+│   ├── monitors.lua
+│   ├── input.lua
+│   ├── layout.lua
+│   ├── appearance.lua
+│   ├── animations.lua
+│   ├── rules.lua
+│   ├── workspaces.lua
+│   ├── binds.lua
+│   └── startup.lua
+├── wallpapers/
+│   └── pulse-ghost.svg
+└── custom.lua          # optional user overrides
+```
+
+The old `.conf` files remain in the repository as compatibility/reference material, but the modern installation is driven by Lua.
+
+## Desktop components
+
+- Hyprland Lua configuration
 - Waybar panel
-- Rofi application launcher/control menu
+- Rofi launcher/control center
 - Kitty terminal
 - Mako notifications
 - Hyprlock + Hypridle
-- PipeWire / WirePlumber audio
-- NetworkManager
-- Screenshots, clipboard, wallpapers, brightness and media helpers
-- Pulse session launcher
-- Pulse settings/control panel
-- Pulse Doctor diagnostics
-- Safe Git-based updates
-- Repair mode for older/broken installations
-- A Wayland session entry for display managers
+- PipeWire + WirePlumber
+- NetworkManager + `iwctl`/iwd support
+- Ghost wallpaper generation through ImageMagick + swww
+- Screenshot and clipboard helpers
+- Pulse settings
+- Pulse Doctor
+- Pulse repair/update system
+- Wayland session entry
 
 ## Install
 
-On Arch Linux / EndeavourOS:
+Arch Linux / EndeavourOS:
 
 ```bash
 git clone https://github.com/JcDesigns-the-developer/Pulse.git
@@ -35,40 +67,80 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Log out and back in after installation. You can then select **Pulse** from a display manager, or start it from a TTY with:
+Log out and back in after installation. Select **Pulse** in your display manager, or from a properly initialized systemd TTY:
 
 ```bash
 pulse-session
 ```
 
-Do **not** run Hyprland with `sudo`.
+**Never run Hyprland with `sudo`.**
 
-## Pulse command
+`XDG_RUNTIME_DIR` is owned and created by systemd-logind. Pulse intentionally does not create or fake `/run/user/$UID`.
 
-Pulse now has one main control command:
+## Pulse commands
 
 ```text
-pulse
-pulse start
-pulse update
-pulse fix
-pulse fix/update
-pulse settings
-pulse wallpaper
-pulse screenshot
-pulse doctor
-pulse version
+pulse                  Control center
+pulse start            Start the desktop
+pulse network          Wi-Fi / network control
+pulse settings         Settings
+pulse wallpaper        Change Ghost wallpaper
+pulse screenshot       Screenshot
+pulse update           Update Pulse
+pulse fix              Repair Pulse
+pulse fix/update       Update + repair
+pulse doctor           Diagnostics
+pulse version          Version
 ```
 
-Useful aliases:
+Shortcuts:
 
 ```bash
-pulse -u       # update
-pulse -f       # repair
-pulse -fu      # update + repair
+pulse -u
+pulse -f
+pulse -fu
 ```
 
-### Doctor
+## Wi-Fi
+
+Pulse uses NetworkManager as its primary backend and keeps `iwctl` available for systems using iwd directly.
+
+Terminal:
+
+```bash
+nmcli device wifi list
+nmcli device wifi connect "Your WiFi" password "Your Password"
+```
+
+Or:
+
+```bash
+iwctl
+device list
+station wlan0 scan
+station wlan0 get-networks
+station wlan0 connect "Your WiFi"
+```
+
+The graphical Pulse network menu is:
+
+```bash
+pulse network
+```
+
+## Repair
+
+For an older Pulse installation or a machine with stale configuration:
+
+```bash
+pulse fix/update
+```
+
+Pulse updates the Git checkout using fast-forward-only Git behavior, creates a timestamped backup of managed configuration, and refreshes the installed desktop files.
+
+Local Git changes are never silently overwritten.
+
+## Doctor
 
 Run:
 
@@ -76,72 +148,45 @@ Run:
 pulse doctor
 ```
 
-It checks the core desktop commands, managed configuration, session environment, update timer, and known stale Hyprland configuration problems.
+Doctor checks:
 
-### Repairing an old installation
-
-If an older Pulse install has stale files or a broken configuration:
-
-```bash
-pulse fix/update
-```
-
-This updates the local Pulse checkout using a fast-forward-only Git update, creates a timestamped backup of the live Pulse-managed configuration, and then refreshes the managed files from the current `main` branch.
-
-Local changes inside the Pulse Git checkout are never automatically destroyed.
+- Hyprland and `start-hyprland`
+- Waybar/Rofi/Kitty/Mako
+- NetworkManager/iwd
+- Lua configuration files
+- Hypridle/Hyprlock
+- Pulse theme/settings
+- wallpaper assets
+- XDG session state
+- update timer
+- known legacy Hyprland configuration problems
 
 ## Automatic updates
 
-Pulse installs a user systemd timer that checks the repository every 30 minutes. Updates only move the checkout forward when the local repository is clean and the remote `main` branch is a descendant of the local commit.
-
-Update log:
+Pulse installs a user systemd timer that checks the GitHub `main` branch every 30 minutes.
 
 ```text
 ~/.local/state/pulse/update.log
 ```
 
-Manual update:
+The updater refuses to overwrite local Git changes or merge divergent history automatically.
 
-```bash
-pulse update
-```
+## Design
 
-## Repository layout
+Pulse Ghost is intentionally:
 
-```text
-Pulse/
-├── install.sh
-├── packages.txt
-├── session/
-│   └── pulse.desktop
-├── .config/
-│   ├── hypr/
-│   ├── waybar/
-│   ├── rofi/
-│   ├── kitty/
-│   ├── mako/
-│   ├── hyprlock/
-│   ├── hypridle/
-│   └── ...
-└── local/bin/
-    ├── pulse
-    ├── pulse-session
-    ├── pulse-start
-    ├── pulse-menu
-    ├── pulse-settings
-    ├── pulse-doctor
-    ├── pulse-fix
-    ├── pulse-update
-    ├── pulse-wallpaper
-    └── pulse-screenshot
-```
+- black and white
+- anime-ghost themed
+- compact
+- sharp
+- slightly creepy
+- practical
+- keyboard friendly
+- transparent where useful
+- closer to a real desktop than a showcase rice
 
-## Design philosophy
-
-Pulse is intentionally **not** a Material You clone and not a generic modern rice.
-
-The target is a recognizable JcDesigns desktop: dark, black/red, compact, sharp, practical, keyboard-friendly, and closer to a real classic desktop environment than a showcase screenshot.
+The architecture takes inspiration from the modular organization used by current Hyprland dotfile projects, but Pulse keeps its own implementation and visual identity.
 
 ## License
 
-MIT. Wallpaper assets, fonts, and third-party software remain under their respective licenses.
+MIT. Third-party software, fonts, and any future external artwork remain under their respective licenses.
