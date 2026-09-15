@@ -2,21 +2,27 @@ configuration {
     modi: "drun,run,window";
     show-icons: true;
     drun-display-format: "{name}";
-    font: "JetBrainsMono Nerd Font 11";
+    font: "Noto Sans 11";
 }
 
 * {
-    bg: #09090b;
-    fg: #eeeeee;
-    accent: #d0002b;
-    border: #3a111b;
+    bg: #070707;
+    fg: #f5f5f5;
+    muted: #888888;
+    border: #f5f5f5;
 }
 
-window { width: 620px; border: 2px; border-color: @border; background-color: @bg; }
+window {
+    width: 620px;
+    border: 1px;
+    border-color: @border;
+    background-color: @bg;
+}
+
 mainbox { padding: 12px; }
 inputbar { padding: 8px; children: [ prompt, entry ]; }
-prompt { text-color: @accent; }
+prompt { text-color: @fg; }
 entry { text-color: @fg; }
-listview { lines: 8; columns: 1; spacing: 5px; padding: 8px 0 0; }
-element { padding: 8px; }
-element selected { background-color: @accent; text-color: #ffffff; }
+listview { lines: 8; columns: 1; spacing: 3px; padding: 8px 0 0; }
+element { padding: 8px; text-color: @fg; background-color: transparent; }
+element selected { background-color: #f5f5f5; text-color: #050505; }
