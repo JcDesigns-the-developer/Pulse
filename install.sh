@@ -10,11 +10,11 @@ while IFS= read -r pkg; do
   [[ -n "$pkg" && "$pkg" != \#* ]] && packages+=("$pkg")
 done < "$REPO_DIR/packages.txt"
 
-echo "== Pulse-Ware installer =="
-echo "This will install the Pulse-Ware desktop configuration."
+echo "== Pulse installer =="
+echo "Installing the Pulse desktop stack and its control tools."
 
 if ! command -v pacman >/dev/null 2>&1; then
-  echo "Pulse-Ware currently targets Arch Linux / EndeavourOS."
+  echo "Pulse currently targets Arch Linux / EndeavourOS."
   exit 1
 fi
 
@@ -34,6 +34,13 @@ if [[ -d "$REPO_DIR/local/bin" ]]; then
   chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
 fi
 
+# Install a real Wayland session entry so display managers can offer Pulse.
+wayland_sessions="$HOME/.local/share/wayland-sessions"
+mkdir -p "$wayland_sessions"
+if [[ -f "$REPO_DIR/session/pulse.desktop" ]]; then
+  cp -f "$REPO_DIR/session/pulse.desktop" "$wayland_sessions/pulse.desktop"
+fi
+
 mkdir -p "$HOME/Pictures/Screenshots"
 
 # XDG_RUNTIME_DIR is normally provided by systemd-logind. The generated
@@ -45,7 +52,7 @@ cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<EOF
 XDG_RUNTIME_DIR=/run/user/$uid
 XDG_SESSION_TYPE=wayland
 XDG_CURRENT_DESKTOP=Hyprland
-DESKTOP_SESSION=hyprland
+DESKTOP_SESSION=pulse
 MOZ_ENABLE_WAYLAND=1
 ELECTRON_OZONE_PLATFORM_HINT=auto
 EOF
@@ -54,6 +61,7 @@ EOF
 mkdir -p "$CONFIG_DIR/pulse"
 cat > "$CONFIG_DIR/pulse/pulse.conf" <<EOF
 PULSE_REPO_DIR=$REPO_DIR
+PULSE_VERSION=1.0.0
 EOF
 
 # Optional environment integrations.
@@ -96,8 +104,17 @@ chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null 
 
 cat <<EOF
 
-Pulse-Ware installed.
+Pulse installed.
 Backup: $BACKUP_DIR
+
+CONTROL COMMANDS:
+  pulse                 Open the Pulse control menu
+  pulse start           Start the Pulse session
+  pulse update          Update Pulse
+  pulse fix             Repair Pulse
+  pulse fix/update      Update + repair everything
+  pulse settings        Pulse settings/control panel
+  pulse doctor          Diagnose the installation
 
 AUTO UPDATE:
   Pulse checks the GitHub main branch every 30 minutes.
@@ -105,12 +122,9 @@ AUTO UPDATE:
   Updated config files are applied automatically after a successful pull.
   Update log: ~/.local/state/pulse/update.log
 
-Your previous Hyprland launch failed because XDG_RUNTIME_DIR was not set.
-The installer now configures it and provides a safe launcher.
-
 Log out and back in so systemd/logind creates the normal user session.
-Then launch Hyprland normally, or from a TTY use:
+From a TTY, use:
   pulse-session
 
-Do NOT manually create /run/user/$uid; systemd owns that directory.
+Do NOT run Hyprland with sudo and do NOT manually create /run/user/$uid.
 EOF
