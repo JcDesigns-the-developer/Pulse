@@ -10,8 +10,8 @@ while IFS= read -r pkg; do
   [[ -n "$pkg" && "$pkg" != \#* ]] && packages+=("$pkg")
 done < "$REPO_DIR/packages.txt"
 
-echo "== Pulse installer =="
-echo "Installing the Pulse desktop stack and its control tools."
+echo "== Pulse Ghost installer =="
+echo "Installing the Pulse desktop stack and control tools."
 
 if ! command -v pacman >/dev/null 2>&1; then
   echo "Pulse currently targets Arch Linux / EndeavourOS."
@@ -21,8 +21,8 @@ fi
 sudo pacman -Syu --needed "${packages[@]}"
 
 mkdir -p "$BACKUP_DIR"
-for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d systemd; do
-  if [[ -d "$CONFIG_DIR/$dir" ]]; then
+for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d pulse systemd; do
+  if [[ -e "$CONFIG_DIR/$dir" ]]; then
     mv "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
   fi
 done
@@ -34,7 +34,6 @@ if [[ -d "$REPO_DIR/local/bin" ]]; then
   chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
 fi
 
-# Install a real Wayland session entry so display managers can offer Pulse.
 wayland_sessions="$HOME/.local/share/wayland-sessions"
 mkdir -p "$wayland_sessions"
 if [[ -f "$REPO_DIR/session/pulse.desktop" ]]; then
@@ -43,13 +42,11 @@ fi
 
 mkdir -p "$HOME/Pictures/Screenshots"
 
-# XDG_RUNTIME_DIR is normally provided by systemd-logind. The generated
-# environment file makes the value explicit for the user's next graphical
-# session without hard-coding a UID into the Hyprland config.
-uid="$(id -u)"
+# XDG_RUNTIME_DIR is owned and created by systemd-logind. Pulse deliberately
+# does not manufacture it in environment.d because doing so can break PipeWire,
+# D-Bus, and graphical sessions.
 mkdir -p "$CONFIG_DIR/environment.d"
-cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<EOF
-XDG_RUNTIME_DIR=/run/user/$uid
+cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<'EOF'
 XDG_SESSION_TYPE=wayland
 XDG_CURRENT_DESKTOP=Hyprland
 DESKTOP_SESSION=pulse
@@ -57,14 +54,12 @@ MOZ_ENABLE_WAYLAND=1
 ELECTRON_OZONE_PLATFORM_HINT=auto
 EOF
 
-# Remember where this checkout lives so the background updater can pull it.
 mkdir -p "$CONFIG_DIR/pulse"
 cat > "$CONFIG_DIR/pulse/pulse.conf" <<EOF
 PULSE_REPO_DIR=$REPO_DIR
-PULSE_VERSION=1.0.0
+PULSE_VERSION=2.0.0
 EOF
 
-# Optional environment integrations.
 if command -v starship >/dev/null 2>&1; then
   touch "$HOME/.bashrc"
   grep -qxF 'eval "$(starship init bash)"' "$HOME/.bashrc" 2>/dev/null || echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
@@ -81,21 +76,17 @@ Terminal=false
 X-GNOME-Autostart-enabled=true
 EOF
 
-# Enable the Pulse updater even when the installer is run from a TTY without
-# a user D-Bus session. systemd will start the timer on the next user login.
 timer_dir="$CONFIG_DIR/systemd/user/timers.target.wants"
 mkdir -p "$timer_dir"
 ln -sfn ../pulse-update.timer "$timer_dir/pulse-update.timer"
 
-# Only talk to the user systemd instance when this shell is already inside a
-# graphical/logind session. A TTY installer should not emit a D-Bus failure.
 if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
   systemctl --user daemon-reload || true
   systemctl --user enable --now pulse-update.timer || true
   systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
 else
   echo "Skipping immediate user-systemd activation: no user D-Bus session is available."
-  echo "The Pulse updater is enabled and will start with the next user session."
+  echo "The Pulse updater will activate after the next graphical user login."
 fi
 
 sudo systemctl enable --now NetworkManager.service || true
@@ -104,27 +95,25 @@ chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null 
 
 cat <<EOF
 
-Pulse installed.
+Pulse Ghost installed.
 Backup: $BACKUP_DIR
 
 CONTROL COMMANDS:
-  pulse                 Open the Pulse control menu
-  pulse start           Start the Pulse session
-  pulse update          Update Pulse
-  pulse fix             Repair Pulse
-  pulse fix/update      Update + repair everything
-  pulse settings        Pulse settings/control panel
-  pulse doctor          Diagnose the installation
+  pulse                  Control menu
+  pulse start            Start through start-hyprland
+  pulse network          Wi-Fi/network control
+  pulse settings         Settings
+  pulse doctor           Diagnostics
+  pulse fix/update       Update + repair
 
 AUTO UPDATE:
-  Pulse checks the GitHub main branch every 30 minutes.
-  Updates are fast-forward-only and local repo changes are never overwritten.
-  Updated config files are applied automatically after a successful pull.
+  Pulse checks GitHub main every 30 minutes.
   Update log: ~/.local/state/pulse/update.log
 
-Log out and back in so systemd/logind creates the normal user session.
-From a TTY, use:
-  pulse-session
+IMPORTANT:
+  XDG_RUNTIME_DIR is supplied by systemd-logind; Pulse does not create it.
+  Do not run Hyprland with sudo.
 
-Do NOT run Hyprland with sudo and do NOT manually create /run/user/$uid.
+Log out and back in after installation, then choose Pulse in your display
+manager or run 'pulse-session' from a properly initialized systemd user TTY.
 EOF
