@@ -2,7 +2,33 @@
 set -euo pipefail
 
 WALLPAPER_DIR="$HOME/.config/hypr/wallpapers"
-WALLPAPER="$(find "$WALLPAPER_DIR" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) | shuf -n 1)"
+SOURCE="$WALLPAPER_DIR/pulse-ghost.svg"
+GENERATED="$WALLPAPER_DIR/pulse-ghost.png"
 
-[[ -n "${WALLPAPER:-}" ]] || { echo "No wallpapers found in $WALLPAPER_DIR"; exit 1; }
+mkdir -p "$WALLPAPER_DIR"
+
+if [[ -f "$SOURCE" ]]; then
+    if command -v magick >/dev/null 2>&1; then
+        magick "$SOURCE" -resize '1920x1080^' -gravity center -extent 1920x1080 "$GENERATED"
+    elif command -v convert >/dev/null 2>&1; then
+        convert "$SOURCE" -resize '1920x1080^' -gravity center -extent 1920x1080 "$GENERATED"
+    fi
+fi
+
+if ! command -v swww >/dev/null 2>&1; then
+    echo "Pulse: swww is not installed." >&2
+    exit 1
+fi
+
+if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+    swww-daemon >/dev/null 2>&1 &
+    for _ in {1..20}; do
+        pgrep -x swww-daemon >/dev/null 2>&1 && break
+        sleep 0.1
+    done
+fi
+
+WALLPAPER="$(find "$WALLPAPER_DIR" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) | shuf -n 1)"
+[[ -n "${WALLPAPER:-}" ]] || { echo "No wallpapers found in $WALLPAPER_DIR" >&2; exit 1; }
+
 swww img "$WALLPAPER" --transition-type fade --transition-duration 1
