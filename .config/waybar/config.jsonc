@@ -21,7 +21,7 @@
   "hyprland/window": {"format": "{}", "max-length": 56},
   "clock": {"format": "{:%a %d %b  %H:%M}", "tooltip-format": "{:%A, %B %d %Y}\nWeek %V"},
   "custom/media": {
-    "format": "{ }",
+    "format": "{}",
     "exec": "playerctl metadata --format='{{artist}} — {{title}}' 2>/dev/null || true",
     "interval": 3,
     "max-length": 42,
