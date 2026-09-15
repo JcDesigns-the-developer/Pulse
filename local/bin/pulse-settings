@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG="$HOME/.config/pulse/pulse.conf"
+
+show() {
+  clear 2>/dev/null || true
+  echo "== Pulse Settings =="
+  echo
+  if [[ -f "$CONFIG" ]]; then
+    sed 's/^PULSE_REPO_DIR=/Repository: /' "$CONFIG"
+  else
+    echo "Repository: $HOME/Pulse (default)"
+  fi
+  echo
+  echo "Managed config: ~/.config"
+  echo "Updater log:    ~/.local/state/pulse/update.log"
+  echo
+  echo "Commands"
+  echo "  pulse doctor      Diagnose the installation"
+  echo "  pulse update      Pull normal updates"
+  echo "  pulse fix         Repair Pulse-managed files"
+  echo "  pulse fix/update  Pull and repair everything"
+  echo
+}
+
+if command -v rofi >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+  choice="$(printf '%s\n' \
+    'Run Pulse Doctor' \
+    'Update Pulse' \
+    'Fix Pulse' \
+    'Fix + Update Pulse' \
+    'Show Settings' \
+    'Cancel' | rofi -dmenu -i -p 'Pulse')" || true
+
+  case "$choice" in
+    'Run Pulse Doctor') exec "$HOME/.local/bin/pulse-doctor" ;;
+    'Update Pulse') exec "$HOME/.local/bin/pulse-update" -update ;;
+    'Fix Pulse') exec "$HOME/.local/bin/pulse-update" -fix ;;
+    'Fix + Update Pulse') exec "$HOME/.local/bin/pulse-update" -fix/update ;;
+    'Show Settings') show ;;
+    *) exit 0 ;;
+  esac
+else
+  show
+fi
