@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start Pulse through Hyprland's supported session wrapper. The wrapper is
-# preferred over launching Hyprland directly because it prepares the Wayland
-# session environment correctly.
+# Pulse-Ware Hyprland launcher.
+# Hyprland's supported launcher is start-hyprland; do not execute the
+# compositor directly because that skips the session/bootstrap wrapper.
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
-export DESKTOP_SESSION="${DESKTOP_SESSION:-pulse}"
+export DESKTOP_SESSION="${DESKTOP_SESSION:-hyprland}"
 export MOZ_ENABLE_WAYLAND="${MOZ_ENABLE_WAYLAND:-1}"
 export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
 
 if [[ ! -d "$XDG_RUNTIME_DIR" ]]; then
-    echo "Pulse: $XDG_RUNTIME_DIR does not exist." >&2
+    echo "Pulse-Ware: $XDG_RUNTIME_DIR does not exist." >&2
     echo "Log into a normal systemd user session first; do not create /run/user manually." >&2
     exit 1
 fi
 
 if [[ ! -w "$XDG_RUNTIME_DIR" ]]; then
-    echo "Pulse: $XDG_RUNTIME_DIR is not writable by $(id -un)." >&2
+    echo "Pulse-Ware: $XDG_RUNTIME_DIR is not writable by $(id -un)." >&2
     exit 1
 fi
 
-if command -v start-hyprland >/dev/null 2>&1; then
-    exec start-hyprland "$@"
+if ! command -v start-hyprland >/dev/null 2>&1; then
+    echo "Pulse-Ware: start-hyprland was not found in PATH." >&2
+    echo "Install/update the Hyprland package, then run: command -v start-hyprland" >&2
+    exit 1
 fi
 
-# Compatibility fallback for older Hyprland packages that do not ship the
-# session wrapper. This path is only reached when start-hyprland is absent.
-exec Hyprland "$@"
+exec start-hyprland "$@"
