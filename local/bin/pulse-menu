@@ -2,24 +2,28 @@
 set -euo pipefail
 
 choice=$(printf '%s\n' \
-  '󰣇 Applications' \
-  '󰒓 Pulse Settings' \
-  '󰚰 Pulse Doctor' \
-  '󰑓 Update Pulse' \
-  '󰁪 Repair Pulse' \
-  '󰤄 Lock' \
-  '󰍃 Logout' \
-  '󰗼 Reboot' \
-  '󰐥 Shutdown' | rofi -dmenu -i -p 'Pulse')
+  'Applications' \
+  'Network / Wi-Fi' \
+  'Pulse Settings' \
+  'Pulse Doctor' \
+  'Update Pulse' \
+  'Repair Pulse' \
+  'Change Ghost Wallpaper' \
+  'Lock' \
+  'Logout' \
+  'Reboot' \
+  'Shutdown' | rofi -dmenu -i -p 'PULSE')
 
 case "$choice" in
-  *Applications) rofi -show drun ;;
-  *'Pulse Settings') "$HOME/.local/bin/pulse-settings" ;;
-  *'Pulse Doctor') kitty --hold "$HOME/.local/bin/pulse-doctor" ;;
-  *'Update Pulse') kitty --hold "$HOME/.local/bin/pulse-update" -update ;;
-  *'Repair Pulse') kitty --hold "$HOME/.local/bin/pulse-update" -fix/update ;;
-  *Lock) hyprlock ;;
-  *Logout) hyprctl dispatch exit ;;
-  *Reboot) systemctl reboot ;;
-  *Shutdown) systemctl poweroff ;;
+  Applications) rofi -show drun ;;
+  'Network / Wi-Fi') "$HOME/.local/bin/pulse-network" ;;
+  'Pulse Settings') "$HOME/.local/bin/pulse-settings" ;;
+  'Pulse Doctor') kitty --hold "$HOME/.local/bin/pulse-doctor" ;;
+  'Update Pulse') kitty --hold "$HOME/.local/bin/pulse-update" -update ;;
+  'Repair Pulse') kitty --hold "$HOME/.local/bin/pulse-update" -fix/update ;;
+  'Change Ghost Wallpaper') "$HOME/.local/bin/pulse-wallpaper" ;;
+  Lock) hyprlock ;;
+  Logout) hyprctl dispatch exit ;;
+  Reboot) systemctl reboot ;;
+  Shutdown) systemctl poweroff ;;
 esac
