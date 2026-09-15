@@ -1,6 +1,8 @@
 [Desktop Entry]
-Name=Pulse
-Comment=Pulse desktop powered by Hyprland
+Name=Pulse Ghost
+Comment=Pulse black and white anime ghost desktop powered by Hyprland
 Exec=pulse-session
+TryExec=pulse-session
 Type=Application
-DesktopNames=Hyprland;Pulse
+DesktopNames=Pulse;Hyprland
+X-GNOME-WMName=Hyprland
