@@ -11,19 +11,7 @@ fail() { printf '  [FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 
 printf '== Pulse Doctor ==\n\n'
 
-if command -v hyprctl >/dev/null 2>&1; then
-  pass "hyprctl is installed"
-else
-  fail "hyprctl is missing"
-fi
-
-if command -v start-hyprland >/dev/null 2>&1; then
-  pass "start-hyprland is installed"
-else
-  warn "start-hyprland is missing; launch Hyprland through your display manager or install Hyprland"
-fi
-
-for cmd in waybar rofi kitty mako nm-applet swww wl-copy; do
+for cmd in hyprland hyprctl start-hyprland waybar rofi kitty mako nmcli iwctl swww wl-copy; do
   if command -v "$cmd" >/dev/null 2>&1; then
     pass "$cmd is installed"
   else
@@ -32,17 +20,25 @@ for cmd in waybar rofi kitty mako nm-applet swww wl-copy; do
 done
 
 for file in \
-  "$HOME/.config/hypr/hyprland.conf" \
-  "$HOME/.config/hypr/keybinds.conf" \
+  "$HOME/.config/hypr/hyprland.lua" \
+  "$HOME/.config/hypr/hypridle.conf" \
+  "$HOME/.config/hypr/hyprlock.conf" \
+  "$HOME/.config/hypr/pulse/theme.lua" \
+  "$HOME/.config/hypr/pulse/settings.lua" \
+  "$HOME/.config/hypr/pulse/binds.lua" \
+  "$HOME/.config/hypr/pulse/rules.lua" \
   "$HOME/.config/waybar/config.jsonc" \
   "$HOME/.config/waybar/style.css" \
   "$HOME/.config/rofi/config.rasi" \
   "$HOME/.config/kitty/kitty.conf" \
-  "$HOME/.config/pulse/pulse.conf"; do
+  "$HOME/.config/pulse/settings.conf" \
+  "$HOME/.config/pulse/theme.conf" \
+  "$HOME/.config/pulse/pulse.conf" \
+  "$HOME/.config/hypr/wallpapers/pulse-ghost.svg"; do
   if [[ -f "$file" ]]; then
-    pass "$(basename "$file") exists"
+    pass "${file#$HOME/} exists"
   else
-    fail "Missing $file"
+    fail "Missing ${file#$HOME/}"
   fi
 done
 
@@ -52,14 +48,20 @@ else
   fail "XDG_RUNTIME_DIR is not set"
 fi
 
-if [[ -d "$HOME/.config/hypr" ]] && grep -Rni --include='*.conf' 'togglesplit' "$HOME/.config/hypr" >/dev/null 2>&1; then
-  warn "stale togglesplit dispatcher found in ~/.config/hypr; run: pulse fix"
+if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+  pass "WAYLAND_DISPLAY is set to $WAYLAND_DISPLAY"
 else
-  pass "no known stale togglesplit binding found"
+  warn "WAYLAND_DISPLAY is not set; doctor is probably running outside the desktop session"
+fi
+
+if [[ -d "$HOME/.config/hypr" ]] && grep -Rni --include='*.conf' 'togglesplit' "$HOME/.config/hypr" >/dev/null 2>&1; then
+  warn "legacy togglesplit text remains in a .conf file; it is ignored by the Lua config but can confuse older fallbacks"
+else
+  pass "no legacy togglesplit binding found"
 fi
 
 if [[ -f "$HOME/.config/systemd/user/pulse-update.timer" ]]; then
-  pass "Pulse update timer is installed"
+  pass "Pulse update timer file exists"
 else
   warn "Pulse update timer file is missing"
 fi
@@ -70,13 +72,24 @@ else
   warn "Pulse update timer is not enabled"
 fi
 
+if command -v luac >/dev/null 2>&1; then
+  lua_fail=0
+  while IFS= read -r file; do
+    if ! luac -p "$file" >/dev/null 2>&1; then
+      fail "Lua syntax error: ${file#$HOME/}"
+      lua_fail=1
+    fi
+  done < <(find "$HOME/.config/hypr" -type f -name '*.lua' 2>/dev/null)
+  (( lua_fail == 0 )) && pass "Lua syntax checks passed"
+else
+  warn "luac is not installed; Lua syntax was not checked"
+fi
+
 printf '\nSummary: %d OK, %d warnings, %d failures\n' "$ok" "$warn" "$fail"
 
 if (( fail > 0 )); then
   printf 'Recommended repair: pulse fix/update\n'
   exit 1
-elif (( warn > 0 )); then
-  exit 0
 fi
 
-printf 'Pulse looks healthy.\n'
+printf 'Pulse baseline checks passed.\n'
