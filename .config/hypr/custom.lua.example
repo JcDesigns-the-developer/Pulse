@@ -1,0 +1,7 @@
+-- Copy this file to ~/.config/hypr/custom.lua for machine-specific overrides.
+-- Pulse will load custom.lua after its built-in modules.
+-- Keep hardware-specific monitor names, keyboard overrides, and personal binds here.
+
+-- Example:
+-- hl.monitor({ output = "DP-1", mode = "1920x1080@165", position = "0x0", scale = 1 })
+-- hl.bind("SUPER + SHIFT + O", hl.dsp.exec_cmd("your-command"))
