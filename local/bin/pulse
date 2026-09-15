@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="2.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
@@ -9,60 +9,40 @@ usage() {
 Pulse desktop control
 
 Usage:
-  pulse                 Open the Pulse control menu
-  pulse start           Start the Pulse desktop/session
-  pulse update          Update Pulse from GitHub
-  pulse fix             Repair the installed Pulse configuration
-  pulse fix/update      Update, then repair everything Pulse manages
-  pulse settings        Open Pulse settings
-  pulse wallpaper      Change/apply the Pulse wallpaper
-  pulse screenshot     Take a screenshot
-  pulse doctor          Diagnose the Pulse installation
-  pulse version        Show the Pulse version
-  pulse help           Show this help
+  pulse                  Open the Pulse control menu
+  pulse start            Start the Pulse desktop/session
+  pulse update           Update Pulse from GitHub
+  pulse fix              Repair the installed Pulse configuration
+  pulse fix/update       Update, then repair everything Pulse manages
+  pulse settings         Open Pulse settings
+  pulse network          Open Wi-Fi/network control
+  pulse wallpaper        Change/apply the Pulse wallpaper
+  pulse screenshot       Take a screenshot
+  pulse doctor           Diagnose the Pulse installation
+  pulse version          Show the Pulse version
+  pulse help             Show this help
 
 Shortcuts:
-  pulse -u             Update
-  pulse -f             Repair
-  pulse -fu            Update + repair
-  pulse -h             Help
+  pulse -u               Update
+  pulse -f               Repair
+  pulse -fu              Update + repair
+  pulse -h               Help
 EOF
 }
 
 case "${1:-}" in
-  "")
-    exec "$SCRIPT_DIR/pulse-menu"
-    ;;
-  start)
-    exec "$SCRIPT_DIR/pulse-session"
-    ;;
-  update|-u|--update|-update)
-    exec "$SCRIPT_DIR/pulse-update" -update
-    ;;
-  fix|-f|--fix|-fix)
-    exec "$SCRIPT_DIR/pulse-update" -fix
-    ;;
-  fix/update|-fu|-fix/update|--fix/update)
-    exec "$SCRIPT_DIR/pulse-update" -fix/update
-    ;;
-  settings)
-    exec "$SCRIPT_DIR/pulse-settings"
-    ;;
-  wallpaper)
-    exec "$SCRIPT_DIR/pulse-wallpaper"
-    ;;
-  screenshot)
-    exec "$SCRIPT_DIR/pulse-screenshot"
-    ;;
-  doctor)
-    exec "$SCRIPT_DIR/pulse-doctor"
-    ;;
-  version|-v|--version)
-    echo "Pulse $VERSION"
-    ;;
-  help|-h|--help)
-    usage
-    ;;
+  "") exec "$SCRIPT_DIR/pulse-menu" ;;
+  start) exec "$SCRIPT_DIR/pulse-session" ;;
+  update|-u|--update|-update) exec "$SCRIPT_DIR/pulse-update" -update ;;
+  fix|-f|--fix|-fix) exec "$SCRIPT_DIR/pulse-update" -fix ;;
+  fix/update|-fu|-fix/update|--fix/update) exec "$SCRIPT_DIR/pulse-update" -fix/update ;;
+  settings) exec "$SCRIPT_DIR/pulse-settings" ;;
+  network|wifi|wi-fi) exec "$SCRIPT_DIR/pulse-network" ;;
+  wallpaper) exec "$SCRIPT_DIR/pulse-wallpaper" ;;
+  screenshot) exec "$SCRIPT_DIR/pulse-screenshot" ;;
+  doctor) exec "$SCRIPT_DIR/pulse-doctor" ;;
+  version|-v|--version) echo "Pulse $VERSION" ;;
+  help|-h|--help) usage ;;
   *)
     echo "Unknown Pulse command: $1" >&2
     echo >&2
