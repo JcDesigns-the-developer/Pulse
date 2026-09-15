@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pulse-Ware Hyprland launcher.
-# Hyprland's supported launcher is start-hyprland; do not execute the
-# compositor directly because that skips the session/bootstrap wrapper.
-uid="$(id -u)"
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$uid}"
+# Pulse session launcher for Hyprland 0.55+.
+# start-hyprland is the supported compositor bootstrapper.
+
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
-export DESKTOP_SESSION="${DESKTOP_SESSION:-hyprland}"
+export DESKTOP_SESSION="${DESKTOP_SESSION:-pulse}"
 export MOZ_ENABLE_WAYLAND="${MOZ_ENABLE_WAYLAND:-1}"
 export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
 
-if [[ ! -d "$XDG_RUNTIME_DIR" ]]; then
-    echo "Pulse-Ware: $XDG_RUNTIME_DIR does not exist." >&2
-    echo "Log into a normal systemd user session first; do not create /run/user manually." >&2
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+    echo "Pulse: XDG_RUNTIME_DIR is not set." >&2
+    echo "This must be supplied by systemd-logind. Do not create /run/user manually." >&2
+    echo "Log in through a normal systemd/PAM session and run pulse-session again." >&2
     exit 1
 fi
 
-if [[ ! -w "$XDG_RUNTIME_DIR" ]]; then
-    echo "Pulse-Ware: $XDG_RUNTIME_DIR is not writable by $(id -un)." >&2
+if [[ ! -d "$XDG_RUNTIME_DIR" || ! -w "$XDG_RUNTIME_DIR" ]]; then
+    echo "Pulse: XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR is missing or not writable." >&2
     exit 1
 fi
 
 if ! command -v start-hyprland >/dev/null 2>&1; then
-    echo "Pulse-Ware: start-hyprland was not found in PATH." >&2
-    echo "Install/update the Hyprland package, then run: command -v start-hyprland" >&2
+    echo "Pulse: start-hyprland was not found in PATH." >&2
+    echo "Install/update the Hyprland package." >&2
     exit 1
 fi
 
