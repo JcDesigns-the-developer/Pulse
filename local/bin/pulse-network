@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Pulse network control. NetworkManager is the primary backend because Pulse
-# installs it system-wide; iwctl is supported as a fallback for iwd-only setups.
+# installs it system-wide; iwctl remains available for iwd-only setups.
 
 if command -v nmcli >/dev/null 2>&1; then
     if command -v rofi >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
@@ -15,21 +15,40 @@ if command -v nmcli >/dev/null 2>&1; then
             | rofi -dmenu -i -p 'Pulse Network')" || true
 
         case "$choice" in
-            'Wi-Fi status') nmcli device wifi; read -r -p 'Press Enter to close...' _ ;;
-            'Scan networks') nmcli device wifi rescan >/dev/null 2>&1 || true; nmcli device wifi list; read -r -p 'Press Enter to close...' _ ;;
+            'Wi-Fi status')
+                nmcli device wifi
+                ;;
+            'Scan networks')
+                nmcli device wifi rescan >/dev/null 2>&1 || true
+                nmcli device wifi list
+                ;;
             'Connect to network')
                 ssid="$(nmcli -t -f SSID device wifi list | sed '/^$/d' | rofi -dmenu -i -p 'Wi-Fi')" || true
                 [[ -z "$ssid" ]] && exit 0
-                nmcli device wifi connect "$ssid"
+                password="$(rofi -dmenu -password -p 'Password')" || true
+                [[ -z "$password" ]] && exit 0
+                nmcli device wifi connect "$ssid" password "$password"
                 ;;
-            'Toggle Wi-Fi') nmcli radio wifi off 2>/dev/null || nmcli radio wifi on ;;
-            'NetworkManager status') nmcli general status; nmcli device; read -r -p 'Press Enter to close...' _ ;;
-            *) exit 0 ;;
+            'Toggle Wi-Fi')
+                state="$(nmcli radio wifi)"
+                if [[ "$state" == "enabled" ]]; then
+                    nmcli radio wifi off
+                else
+                    nmcli radio wifi on
+                fi
+                ;;
+            'NetworkManager status')
+                nmcli general status
+                nmcli device
+                ;;
+            *)
+                exit 0
+                ;;
         esac
-    else
-        exec nmcli device wifi
+        exit 0
     fi
-    exit 0
+
+    exec nmcli device wifi
 fi
 
 if command -v iwctl >/dev/null 2>&1; then
