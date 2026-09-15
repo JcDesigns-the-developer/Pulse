@@ -1,36 +1,41 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 38,
-  "spacing": 5,
+  "height": 36,
+  "spacing": 4,
   "modules-left": ["custom/start", "hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],
   "modules-right": ["custom/media", "pulseaudio", "network", "cpu", "memory", "battery", "tray"],
 
   "custom/start": {
-    "format": "󰣇  Start",
-    "tooltip": "Pulse application menu",
-    "on-click": "~/.local/bin/pulse-start",
-    "on-click-right": "~/.local/bin/pulse-menu"
+    "format": "◈  PULSE",
+    "tooltip": "Pulse Ghost menu",
+    "on-click": "~/.local/bin/pulse-menu",
+    "on-click-right": "~/.local/bin/pulse-settings"
   },
   "hyprland/workspaces": {
     "format": "{icon}",
     "format-icons": {"active": "●", "default": "○"},
-    "persistent-workspaces": {"*": 5}
+    "persistent-workspaces": {"*": 10}
   },
-  "hyprland/window": {"format": "{}", "max-length": 50},
-  "clock": {"format": "󰥔  {:%a %d %b  %H:%M}", "tooltip-format": "{:%A, %B %d %Y}\nWeek %V"},
+  "hyprland/window": {"format": "{}", "max-length": 56},
+  "clock": {"format": "{:%a %d %b  %H:%M}", "tooltip-format": "{:%A, %B %d %Y}\nWeek %V"},
   "custom/media": {
-    "format": "{}",
-    "exec": "playerctl metadata --format='󰎆  {{artist}} — {{title}}' 2>/dev/null || true",
-    "interval": 2,
-    "max-length": 40,
+    "format": "{ }",
+    "exec": "playerctl metadata --format='{{artist}} — {{title}}' 2>/dev/null || true",
+    "interval": 3,
+    "max-length": 42,
     "on-click": "playerctl play-pause"
   },
-  "cpu": {"format": "󰍛 {usage}%", "interval": 2},
-  "memory": {"format": "󰘚 {percentage}%", "interval": 2},
-  "battery": {"format": "󰁹 {capacity}%", "format-charging": "󰂄 {capacity}%", "states": {"warning": 25, "critical": 10}},
-  "network": {"format-wifi": "󰤨 {signalStrength}%", "format-ethernet": "󰈀", "format-disconnected": "󰤭"},
-  "pulseaudio": {"format": "{icon} {volume}%", "format-muted": "󰝟 muted", "format-icons": ["󰕿", "󰖀", "󰕾"]},
+  "cpu": {"format": "CPU {usage}%", "interval": 2},
+  "memory": {"format": "RAM {percentage}%", "interval": 2},
+  "battery": {"format": "BAT {capacity}%", "format-charging": "BAT+ {capacity}%", "states": {"warning": 25, "critical": 10}},
+  "network": {
+    "format-wifi": "WIFI {signalStrength}%",
+    "format-ethernet": "LAN",
+    "format-disconnected": "OFFLINE",
+    "on-click": "pulse-network"
+  },
+  "pulseaudio": {"format": "VOL {volume}%", "format-muted": "VOL muted"},
   "tray": {"spacing": 8}
 }
