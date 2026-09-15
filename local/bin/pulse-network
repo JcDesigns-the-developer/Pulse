@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pulse network control. NetworkManager is the primary backend because Pulse
+# installs it system-wide; iwctl is supported as a fallback for iwd-only setups.
+
+if command -v nmcli >/dev/null 2>&1; then
+    if command -v rofi >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+        choice="$(printf '%s\n' \
+            'Wi-Fi status' \
+            'Scan networks' \
+            'Connect to network' \
+            'Toggle Wi-Fi' \
+            'NetworkManager status' \
+            | rofi -dmenu -i -p 'Pulse Network')" || true
+
+        case "$choice" in
+            'Wi-Fi status') nmcli device wifi; read -r -p 'Press Enter to close...' _ ;;
+            'Scan networks') nmcli device wifi rescan >/dev/null 2>&1 || true; nmcli device wifi list; read -r -p 'Press Enter to close...' _ ;;
+            'Connect to network')
+                ssid="$(nmcli -t -f SSID device wifi list | sed '/^$/d' | rofi -dmenu -i -p 'Wi-Fi')" || true
+                [[ -z "$ssid" ]] && exit 0
+                nmcli device wifi connect "$ssid"
+                ;;
+            'Toggle Wi-Fi') nmcli radio wifi off 2>/dev/null || nmcli radio wifi on ;;
+            'NetworkManager status') nmcli general status; nmcli device; read -r -p 'Press Enter to close...' _ ;;
+            *) exit 0 ;;
+        esac
+    else
+        exec nmcli device wifi
+    fi
+    exit 0
+fi
+
+if command -v iwctl >/dev/null 2>&1; then
+    exec iwctl
+fi
+
+echo 'Pulse: neither nmcli nor iwctl is installed.' >&2
+exit 1
