@@ -22,7 +22,10 @@ hl.config({
     },
     general = {
         col = {
-            active_border = { theme.rgba(theme.white, "ee") },
+            active_border = {
+                colors = { theme.rgba(theme.white, "ee") },
+                angle = 45,
+            },
             inactive_border = theme.rgba(theme.gray_dark, "aa"),
         },
     },
