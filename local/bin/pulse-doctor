@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -u
+
+ok=0
+warn=0
+fail=0
+
+pass() { printf '  [OK]   %s\n' "$1"; ok=$((ok + 1)); }
+warn() { printf '  [WARN] %s\n' "$1"; warn=$((warn + 1)); }
+fail() { printf '  [FAIL] %s\n' "$1"; fail=$((fail + 1)); }
+
+printf '== Pulse Doctor ==\n\n'
+
+if command -v hyprctl >/dev/null 2>&1; then
+  pass "hyprctl is installed"
+else
+  fail "hyprctl is missing"
+fi
+
+if command -v start-hyprland >/dev/null 2>&1; then
+  pass "start-hyprland is installed"
+else
+  warn "start-hyprland is missing; launch Hyprland through your display manager or install Hyprland"
+fi
+
+for cmd in waybar rofi kitty mako nm-applet swww wl-copy; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    pass "$cmd is installed"
+  else
+    warn "$cmd is missing"
+  fi
+done
+
+for file in \
+  "$HOME/.config/hypr/hyprland.conf" \
+  "$HOME/.config/hypr/keybinds.conf" \
+  "$HOME/.config/waybar/config.jsonc" \
+  "$HOME/.config/waybar/style.css" \
+  "$HOME/.config/rofi/config.rasi" \
+  "$HOME/.config/kitty/kitty.conf" \
+  "$HOME/.config/pulse/pulse.conf"; do
+  if [[ -f "$file" ]]; then
+    pass "$(basename "$file") exists"
+  else
+    fail "Missing $file"
+  fi
+done
+
+if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+  pass "XDG_RUNTIME_DIR is set to $XDG_RUNTIME_DIR"
+else
+  fail "XDG_RUNTIME_DIR is not set"
+fi
+
+if [[ -d "$HOME/.config/hypr" ]] && grep -Rni --include='*.conf' 'togglesplit' "$HOME/.config/hypr" >/dev/null 2>&1; then
+  warn "stale togglesplit dispatcher found in ~/.config/hypr; run: pulse fix"
+else
+  pass "no known stale togglesplit binding found"
+fi
+
+if [[ -f "$HOME/.config/systemd/user/pulse-update.timer" ]]; then
+  pass "Pulse update timer is installed"
+else
+  warn "Pulse update timer file is missing"
+fi
+
+if [[ -f "$HOME/.config/systemd/user/timers.target.wants/pulse-update.timer" ]]; then
+  pass "Pulse update timer is enabled"
+else
+  warn "Pulse update timer is not enabled"
+fi
+
+printf '\nSummary: %d OK, %d warnings, %d failures\n' "$ok" "$warn" "$fail"
+
+if (( fail > 0 )); then
+  printf 'Recommended repair: pulse fix/update\n'
+  exit 1
+elif (( warn > 0 )); then
+  exit 0
+fi
+
+printf 'Pulse looks healthy.\n'
