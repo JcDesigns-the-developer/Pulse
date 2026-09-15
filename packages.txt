@@ -1,4 +1,4 @@
-# Pulse-Ware core packages — official Arch repositories only
+# Pulse Ghost desktop — official Arch repositories
 hyprland
 waybar
 rofi-wayland
@@ -13,6 +13,7 @@ pipewire-pulse
 wireplumber
 networkmanager
 network-manager-applet
+iwd
 pavucontrol
 grim
 slurp
@@ -27,6 +28,7 @@ git
 fastfetch
 cava
 starship
+imagemagick
 papirus-icon-theme
 adwaita-cursors
 noto-fonts
