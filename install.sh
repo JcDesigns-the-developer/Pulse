@@ -4,13 +4,14 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$HOME/.config"
 BACKUP_DIR="$HOME/.config/pulse-backup-$(date +%Y%m%d-%H%M%S)"
+PULSE_VERSION="3.0.0"
 
 packages=()
 while IFS= read -r pkg; do
   [[ -n "$pkg" && "$pkg" != \#* ]] && packages+=("$pkg")
 done < "$REPO_DIR/packages.txt"
 
-echo "== Pulse Ghost installer =="
+echo "== Pulse Ghost installer $PULSE_VERSION =="
 echo "Installing the Pulse desktop stack and control tools."
 
 if ! command -v pacman >/dev/null 2>&1; then
@@ -57,7 +58,7 @@ EOF
 mkdir -p "$CONFIG_DIR/pulse"
 cat > "$CONFIG_DIR/pulse/pulse.conf" <<EOF
 PULSE_REPO_DIR=$REPO_DIR
-PULSE_VERSION=2.0.0
+PULSE_VERSION=$PULSE_VERSION
 EOF
 
 if command -v starship >/dev/null 2>&1; then
@@ -95,7 +96,7 @@ chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null 
 
 cat <<EOF
 
-Pulse Ghost installed.
+Pulse Ghost $PULSE_VERSION installed.
 Backup: $BACKUP_DIR
 
 CONTROL COMMANDS:
@@ -105,6 +106,11 @@ CONTROL COMMANDS:
   pulse settings         Settings
   pulse doctor           Diagnostics
   pulse fix/update       Update + repair
+
+LUA ARCHITECTURE:
+  .config/hypr/hyprland.lua is the entry point.
+  .config/hypr/pulse/init.lua owns module loading and the Pulse API.
+  ~/.config/hypr/custom.lua is the machine-local override layer.
 
 AUTO UPDATE:
   Pulse checks GitHub main every 30 minutes.
