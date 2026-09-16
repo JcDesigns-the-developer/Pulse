@@ -3,7 +3,7 @@
 -- Built-in Pulse modules load first; this file loads last.
 --
 -- Prefer the Pulse API below instead of reaching into Pulse's internal files.
--- This keeps hardware and personal settings separate from the distro.
+-- This keeps your hardware and personal settings separate from the distro.
 
 local Pulse = require("pulse")
 local Theme = Pulse.load("theme")
@@ -24,6 +24,5 @@ local Theme = Pulse.load("theme")
 -- Direct Hyprland API remains available when a feature is not wrapped yet:
 -- Pulse.hl.bind("SUPER + SHIFT + P", Pulse.exec("your-command"))
 
--- Theme example:
--- local border = Theme.color("foreground")
--- Pulse.config({ general = { col.active_border = border } })
+-- Theme values are available without depending on the theme file path:
+-- local foreground = Theme.color("foreground")
