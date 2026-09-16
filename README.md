@@ -10,19 +10,23 @@ The visual identity is deliberately simple:
 
 No Material You rainbow palette. No generic gray template. No unnecessary UI clutter.
 
-## Current architecture
+## Architecture
 
-Pulse targets modern Hyprland and uses `~/.config/hypr/hyprland.lua` as the main entry point. Hyprland 0.55+ uses Lua as the preferred configuration language, so each concern is isolated into a module instead of one giant configuration file.
+Pulse 3.x uses a small public Lua namespace instead of making `hyprland.lua` know the physical layout of every module.
 
 ```text
 .config/hypr/
-├── hyprland.lua
+├── hyprland.lua                 # tiny entry point
+├── custom.lua.example            # machine-local override template
 ├── hypridle.conf
 ├── hyprlock.conf
 ├── pulse/
-│   ├── theme.lua
+│   ├── init.lua                  # Pulse namespace + lifecycle
+│   ├── theme.lua                 # semantic visual tokens
 │   ├── env.lua
+│   ├── core.lua
 │   ├── settings.lua
+│   ├── apps.lua                  # application registry
 │   ├── monitors.lua
 │   ├── input.lua
 │   ├── layout.lua
@@ -32,16 +36,36 @@ Pulse targets modern Hyprland and uses `~/.config/hypr/hyprland.lua` as the main
 │   ├── workspaces.lua
 │   ├── binds.lua
 │   └── startup.lua
-├── wallpapers/
-│   └── pulse-ghost.svg
-└── custom.lua          # optional user overrides
+├── scripts/
+└── wallpapers/
+    └── pulse-ghost.svg
 ```
 
-The old `.conf` files remain in the repository as compatibility/reference material, but the modern installation is driven by Lua.
+### Pulse API
+
+The public namespace is intentionally shaped like a small framework:
+
+```lua
+local Pulse = require("pulse")
+
+Pulse.bootstrap()
+
+Pulse.command("SUPER + SHIFT + O", "your-command")
+Pulse.monitor({ output = "DP-1", mode = "preferred" })
+Pulse.config({ misc = { disable_hyprland_logo = true } })
+
+local Theme = Pulse.load("theme")
+local foreground = Theme.color("foreground")
+```
+
+`Pulse.bootstrap()` owns module order. Built-in modules load first, then `~/.config/hypr/custom.lua` is loaded as the machine-local override layer. Users therefore do not need to edit Pulse's core files for monitor, bind, or hardware-specific changes.
+
+The underlying Hyprland Lua API is still exposed through `Pulse.hl` for features that Pulse has not wrapped yet.
 
 ## Desktop components
 
 - Hyprland Lua configuration
+- Pulse Lua API and module loader
 - Waybar panel
 - Rofi launcher/control center
 - Kitty terminal
@@ -153,7 +177,7 @@ Doctor checks:
 - Hyprland and `start-hyprland`
 - Waybar/Rofi/Kitty/Mako
 - NetworkManager/iwd
-- Lua configuration files
+- Lua configuration files, including the Pulse API
 - Hypridle/Hyprlock
 - Pulse theme/settings
 - wallpaper assets
@@ -185,7 +209,7 @@ Pulse Ghost is intentionally:
 - transparent where useful
 - closer to a real desktop than a showcase rice
 
-The architecture takes inspiration from the modular organization used by current Hyprland dotfile projects, but Pulse keeps its own implementation and visual identity.
+The architecture is informed by patterns found across modern Hyprland configuration projects, while Pulse keeps its own implementation and visual identity.
 
 ## License
 
