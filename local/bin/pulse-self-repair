@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pulse self-repair engine.
+# It never repairs from "VMware detected" alone. It requires a matching
+# crash signature before changing the graphics stack.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pulse"
+LOG_FILE="$STATE_DIR/self-repair.log"
+WORK_DIR="$STATE_DIR/vmware-repair"
+mkdir -p "$STATE_DIR"
+
+log() {
+    printf '[pulse-self-repair] %s\n' "$*" | tee -a "$LOG_FILE" >&2
+}
+
+fail() {
+    log "ERROR: $*"
+    return 1
+}
+
+if [[ "${PULSE_SELF_REPAIR_ATTEMPTED:-0}" == "1" ]]; then
+    log "A self-repair attempt already ran for this launch; refusing a repair loop."
+    exit 0
+fi
+
+export PULSE_SELF_REPAIR_ATTEMPTED=1
+
+# Hyprland's official crash guidance uses coredumpctl plus the newest runtime
+# log/crash report for launch failures.
+latest_pid="$(coredumpctl list --no-pager --no-legend Hyprland 2>/dev/null | awk 'END {print $2}')"
+report="$(find "${XDG_CACHE_HOME:-$HOME/.cache}/hyprland" -type f -name 'hyprlandCrashReport*.txt' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true)"
+runtime_log="$(find "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr" -type f -name 'hyprland.log' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true)"
+
+EVIDENCE="$(mktemp)"
+trap 'rm -f "$EVIDENCE"' EXIT
+
+if [[ -n "$report" && -f "$report" ]]; then
+    cat "$report" >> "$EVIDENCE"
+    printf '\n' >> "$EVIDENCE"
+fi
+if [[ -n "$runtime_log" && -f "$runtime_log" ]]; then
+    tail -500 "$runtime_log" >> "$EVIDENCE"
+    printf '\n' >> "$EVIDENCE"
+fi
+if [[ -n "$latest_pid" ]]; then
+    coredumpctl info "$latest_pid" --no-pager 2>/dev/null >> "$EVIDENCE" || true
+fi
+
+if ! grep -Eiq 'VMware SVGA|15ad:0405|vmwgfx' <(lspci -nnk 2>/dev/null || true); then
+    log "No VMware SVGA/vmwgfx GPU detected. No VMware repair will be attempted."
+    exit 0
+fi
+
+if ! lsmod 2>/dev/null | grep -q '^vmwgfx\b'; then
+    log "VMware SVGA is present, but vmwgfx is not loaded. No graphics-stack patch will be attempted."
+    exit 0
+fi
+
+hypr_version="$(pacman -Q hyprland 2>/dev/null | awk '{print $2}' || true)"
+log "Detected VMware SVGA + vmwgfx; Hyprland package: ${hypr_version:-unknown}."
+
+# Signature A: the known VMware startup/EGL failure. This is the ONLY case
+# where Pulse is allowed to build the targeted EGL fallback patch.
+if grep -Eiq 'EGL: failed to (create|initialize) (a )?(platform display|a platform display)|initEGL' "$EVIDENCE"; then
+    log "Exact signature: Hyprland EGL initialization failure during OpenGL startup."
+
+    if [[ "$hypr_version" != 0.56.2-* ]]; then
+        log "The bundled EGL fallback is pinned to Hyprland 0.56.2; installed version is ${hypr_version:-unknown}."
+        log "No patch applied because the target version does not match."
+        exit 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1 || ! command -v makepkg >/dev/null 2>&1; then
+        log "Installing Arch build tooling required for the targeted repair."
+        sudo pacman -S --needed base-devel devtools git
+    fi
+
+    rm -rf "$WORK_DIR"
+    mkdir -p "$WORK_DIR"
+    cd "$WORK_DIR"
+
+    log "Fetching the Arch packaging recipe over HTTPS."
+    git clone --depth=1 https://gitlab.archlinux.org/archlinux/packaging/packages/hyprland.git package >/dev/null 2>&1
+    cd package
+
+    PATCH_URL="https://github.com/ClaireDuSoleil/hyprland-vmware-fix/raw/2ccd2bebb82170b355f8d1efbd735979531b9826/patches/hyprland-0.56.2-egl-gbm-fallback.patch"
+    curl -fL --retry 3 "$PATCH_URL" -o hyprland-0.56.2-egl-gbm-fallback.patch
+
+    cp PKGBUILD PKGBUILD.pulse-backup
+    python3 - <<'PY'
+from pathlib import Path
+p = Path('PKGBUILD')
+s = p.read_text()
+patch = 'hyprland-0.56.2-egl-gbm-fallback.patch'
+if patch in s:
+    raise SystemExit('Pulse patch is already present; refusing duplicate patching.')
+if 'pkgver=0.56.2' not in s:
+    raise SystemExit('Current Arch PKGBUILD is not for Hyprland 0.56.2.')
+
+# Keep the official PKGBUILD intact and only add one source + one prepare step.
+s = s.replace('source=(', 'source=(\n  "' + patch + '"', 1)
+if 'sha256sums=(' not in s:
+    raise SystemExit('Expected sha256sums array was not found.')
+s = s.replace('sha256sums=(', 'sha256sums=(\n  SKIP', 1)
+marker = 'cd "$_archive"'
+if marker not in s:
+    raise SystemExit('Expected Hyprland archive directory marker was not found in PKGBUILD.')
+s = s.replace(marker, marker + '\n    patch -Np1 -i "$srcdir/' + patch + '"', 1)
+s = s.replace('pkgrel=', 'pkgrel=', 1)
+# Make the package distinguishable from the official build without changing pkgver.
+import re
+s = re.sub(r'^(pkgrel=)([0-9]+)$', r'\1\2.pulse1', s, count=1, flags=re.M)
+p.write_text(s)
+PY
+
+    log "Checking that the exact EGL patch applies before compiling."
+    makepkg --verifysource
+    makepkg -so
+
+    log "Building patched Hyprland. This can take several minutes."
+    MAKEFLAGS="${MAKEFLAGS:--j$(nproc)}" makepkg -e
+
+    package_file="$(find . -maxdepth 1 -type f -name 'hyprland-0.56.2-*.pkg.tar.zst' ! -name '*debug*' -print -quit)"
+    if [[ -z "$package_file" ]]; then
+        fail "The targeted Hyprland package was not produced."
+        exit 1
+    fi
+
+    log "Installing the targeted package: $package_file"
+    sudo pacman -U --noconfirm "$package_file"
+    log "Targeted EGL repair installed. Pulse will retry Hyprland."
+    exit 42
+fi
+
+# Signature B: explicit-sync symbols are missing. The EGL fallback patch above
+# does not fix this; changing renderer variables would only hide the problem.
+if grep -Eiq 'egl(CreateSyncKHR|DupNativeFenceFDANDROID|WaitSyncKHR)|Display driver doesn.t support egl(CreateSyncKHR|DupNativeFenceFDANDROID|WaitSyncKHR)' "$EVIDENCE"; then
+    log "Exact signature: required EGL explicit-sync entry point is missing."
+    log "No renderer/config workaround is applied because this failure occurs before EGL fallback selection."
+    log "Pulse will leave the system unchanged and preserve the evidence in $LOG_FILE."
+    exit 0
+fi
+
+# Signature C: the known vmwgfx DMA-BUF handle-close failure. This is a
+# post-start client/rendering failure, not the current OpenGL-constructor abort.
+if grep -Eiq 'drmCloseBufferHandle.*(Invalid argument|EINVAL)|DRM_VMW_UNREF_SURFACE|wl_surface#[0-9]+\.attach.*Invalid argument|invalid arguments for wl_surface' "$EVIDENCE"; then
+    log "Exact signature: vmwgfx DMA-BUF handle-close/import failure detected."
+    log "This requires the vmwgfx LinuxDMABUF patch, not the EGL startup patch."
+    log "Pulse did not apply it automatically because the compositor startup path is different."
+    exit 0
+fi
+
+if grep -Eiq 'COpenGLRenderer::initOpenGLImpl|CHyprOpenGLImpl::CHyprOpenGLImpl|initOpenGLImpl' "$EVIDENCE"; then
+    log "OpenGL initialization abort detected, but no exact EGL failure message was found."
+    log "No patch was applied: Pulse will not guess which GPU workaround is appropriate."
+    log "Evidence is preserved in $LOG_FILE."
+    exit 0
+fi
+
+log "Hyprland exited, but no known self-repair signature matched. No system changes made."
+exit 0
