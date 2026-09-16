@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="3.0.0"
+VERSION="3.0.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
@@ -14,6 +14,7 @@ Usage:
   pulse update           Update Pulse from GitHub
   pulse fix              Repair the installed Pulse configuration
   pulse fix/update       Update, then repair everything Pulse manages
+  pulse repair           Diagnose and apply an exact known self-repair
   pulse settings         Open Pulse settings
   pulse network          Open Wi-Fi/network control
   pulse wallpaper        Change/apply the Pulse wallpaper
@@ -36,6 +37,7 @@ case "${1:-}" in
   update|-u|--update|-update) exec "$SCRIPT_DIR/pulse-update" -update ;;
   fix|-f|--fix|-fix) exec "$SCRIPT_DIR/pulse-update" -fix ;;
   fix/update|-fu|-fix/update|--fix/update) exec "$SCRIPT_DIR/pulse-update" -fix/update ;;
+  repair|self-repair) exec "$SCRIPT_DIR/pulse-self-repair" ;;
   settings) exec "$SCRIPT_DIR/pulse-settings" ;;
   network|wifi|wi-fi) exec "$SCRIPT_DIR/pulse-network" ;;
   wallpaper) exec "$SCRIPT_DIR/pulse-wallpaper" ;;
