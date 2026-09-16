@@ -1,9 +1,10 @@
 -- Pulse Ghost desktop
 -- Hyprland 0.55+ Lua entry point.
--- Keep this file intentionally small: modules own individual concerns.
+-- This is the only compositor entry file; modules own individual concerns.
 
 require("pulse.theme")
 require("pulse.env")
+require("pulse.core")
 require("pulse.settings")
 require("pulse.monitors")
 require("pulse.input")
@@ -15,6 +16,5 @@ require("pulse.workspaces")
 require("pulse.binds")
 require("pulse.startup")
 
--- Optional per-machine overrides. These files are never required for Pulse
--- to boot, so a fresh installation remains portable.
+-- Optional per-machine overrides. Pulse itself never requires these to exist.
 pcall(require, "custom")
