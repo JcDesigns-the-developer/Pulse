@@ -9,7 +9,7 @@ pass() { printf '  [OK]   %s\n' "$1"; ok=$((ok + 1)); }
 warn() { printf '  [WARN] %s\n' "$1"; warn=$((warn + 1)); }
 fail() { printf '  [FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 
-printf '== Pulse Doctor ==\n\n'
+printf '== Pulse Doctor 3.0 ==\n\n'
 
 for cmd in hyprland hyprctl start-hyprland waybar rofi kitty mako nmcli iwctl swww wl-copy; do
   if command -v "$cmd" >/dev/null 2>&1; then
@@ -23,6 +23,7 @@ for file in \
   "$HOME/.config/hypr/hyprland.lua" \
   "$HOME/.config/hypr/hypridle.conf" \
   "$HOME/.config/hypr/hyprlock.conf" \
+  "$HOME/.config/hypr/pulse/init.lua" \
   "$HOME/.config/hypr/pulse/theme.lua" \
   "$HOME/.config/hypr/pulse/settings.lua" \
   "$HOME/.config/hypr/pulse/binds.lua" \
@@ -58,6 +59,12 @@ if [[ -d "$HOME/.config/hypr" ]] && grep -Rni --include='*.conf' 'togglesplit' "
   warn "legacy togglesplit text remains in a .conf file; it is ignored by the Lua config but can confuse older fallbacks"
 else
   pass "no legacy togglesplit binding found"
+fi
+
+if [[ -f "$HOME/.config/hypr/custom.lua" ]]; then
+  pass "machine-local custom.lua override is present"
+else
+  warn "no custom.lua override; Pulse defaults will be used"
 fi
 
 if [[ -f "$HOME/.config/systemd/user/pulse-update.timer" ]]; then
