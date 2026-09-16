@@ -5,7 +5,6 @@ set -euo pipefail
 # It never repairs from "VMware detected" alone. It requires a matching
 # crash signature before changing the graphics stack.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pulse"
 LOG_FILE="$STATE_DIR/self-repair.log"
 WORK_DIR="$STATE_DIR/vmware-repair"
@@ -72,9 +71,9 @@ if grep -Eiq 'EGL: failed to (create|initialize) (a )?(platform display|a platfo
         exit 0
     fi
 
-    if ! command -v git >/dev/null 2>&1 || ! command -v makepkg >/dev/null 2>&1; then
+    if ! command -v git >/dev/null 2>&1 || ! command -v makepkg >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
         log "Installing Arch build tooling required for the targeted repair."
-        sudo pacman -S --needed base-devel devtools git
+        sudo pacman -S --needed base-devel devtools git curl
     fi
 
     rm -rf "$WORK_DIR"
@@ -91,6 +90,8 @@ if grep -Eiq 'EGL: failed to (create|initialize) (a )?(platform display|a platfo
     cp PKGBUILD PKGBUILD.pulse-backup
     python3 - <<'PY'
 from pathlib import Path
+import re
+
 p = Path('PKGBUILD')
 s = p.read_text()
 patch = 'hyprland-0.56.2-egl-gbm-fallback.patch'
@@ -108,9 +109,6 @@ marker = 'cd "$_archive"'
 if marker not in s:
     raise SystemExit('Expected Hyprland archive directory marker was not found in PKGBUILD.')
 s = s.replace(marker, marker + '\n    patch -Np1 -i "$srcdir/' + patch + '"', 1)
-s = s.replace('pkgrel=', 'pkgrel=', 1)
-# Make the package distinguishable from the official build without changing pkgver.
-import re
 s = re.sub(r'^(pkgrel=)([0-9]+)$', r'\1\2.pulse1', s, count=1, flags=re.M)
 p.write_text(s)
 PY
