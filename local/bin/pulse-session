@@ -3,6 +3,8 @@ set -euo pipefail
 
 # Pulse session launcher for Hyprland 0.55+.
 # start-hyprland is the supported compositor bootstrapper.
+# If Hyprland exits during startup, Pulse collects the crash evidence and
+# attempts a repair only when a known failure signature matches exactly.
 
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
@@ -37,4 +39,43 @@ if ! command -v start-hyprland >/dev/null 2>&1; then
     exit 1
 fi
 
-exec start-hyprland "$@"
+self_repair_attempted=0
+
+while :; do
+    set +e
+    start-hyprland "$@"
+    status=$?
+    set -e
+
+    # A clean exit should remain a clean exit. Do not invoke repair logic.
+    if (( status == 0 )); then
+        exit 0
+    fi
+
+    if (( self_repair_attempted == 1 )); then
+        echo "Pulse: Hyprland exited again after the self-repair attempt (status $status)." >&2
+        exit "$status"
+    fi
+
+    self_repair_attempted=1
+
+    if ! command -v pulse-self-repair >/dev/null 2>&1; then
+        echo "Pulse: Hyprland exited with status $status and pulse-self-repair is not installed." >&2
+        exit "$status"
+    fi
+
+    echo "Pulse: Hyprland exited with status $status; checking for an exact repair signature..." >&2
+    set +e
+    pulse-self-repair
+    repair_status=$?
+    set -e
+
+    # pulse-self-repair uses 42 only when it actually installed a targeted
+    # repair and wants this launcher to retry Hyprland once.
+    if (( repair_status == 42 )); then
+        echo "Pulse: targeted repair completed; retrying Hyprland..." >&2
+        continue
+    fi
+
+    exit "$status"
+done
