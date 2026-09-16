@@ -10,11 +10,20 @@ export DESKTOP_SESSION="${DESKTOP_SESSION:-pulse}"
 export MOZ_ENABLE_WAYLAND="${MOZ_ENABLE_WAYLAND:-1}"
 export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
 
+# systemd-logind normally supplies XDG_RUNTIME_DIR. If the environment was
+# lost (for example after using su), recover it only when systemd has already
+# created a directory owned and writable by the current user. Never create
+# /run/user manually.
 if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
-    echo "Pulse: XDG_RUNTIME_DIR is not set." >&2
-    echo "This must be supplied by systemd-logind. Do not create /run/user manually." >&2
-    echo "Log in through a normal systemd/PAM session and run pulse-session again." >&2
-    exit 1
+    candidate="/run/user/$(id -u)"
+
+    if [[ -d "$candidate" && -O "$candidate" && -w "$candidate" ]]; then
+        export XDG_RUNTIME_DIR="$candidate"
+    else
+        echo "Pulse: XDG_RUNTIME_DIR is not set and systemd did not provide a usable runtime directory." >&2
+        echo "Log in through a normal systemd/PAM session and run pulse-session again." >&2
+        exit 1
+    fi
 fi
 
 if [[ ! -d "$XDG_RUNTIME_DIR" || ! -w "$XDG_RUNTIME_DIR" ]]; then
