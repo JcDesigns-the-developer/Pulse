@@ -60,9 +60,10 @@ fi
 hypr_version="$(pacman -Q hyprland 2>/dev/null | awk '{print $2}' || true)"
 log "Detected VMware SVGA + vmwgfx; Hyprland package: ${hypr_version:-unknown}."
 
-# Signature A: the known VMware startup/EGL failure. This is the ONLY case
-# where Pulse is allowed to build the targeted EGL fallback patch.
-if grep -Eiq 'EGL: failed to (create|initialize) (a )?(platform display|a platform display)|initEGL' "$EVIDENCE"; then
+# Signature A: only an explicit EGL platform-display initialization error
+# authorizes the targeted fallback patch. A generic initEGL stack frame is NOT
+# enough because that would turn diagnosis into guesswork.
+if grep -Eiq 'EGL: failed to (create|initialize) (a )?platform display|EGL: failed to create a context with either GLES3\.2 or 3\.0' "$EVIDENCE"; then
     log "Exact signature: Hyprland EGL initialization failure during OpenGL startup."
 
     if [[ "$hypr_version" != 0.56.2-* ]]; then
@@ -100,7 +101,6 @@ if patch in s:
 if 'pkgver=0.56.2' not in s:
     raise SystemExit('Current Arch PKGBUILD is not for Hyprland 0.56.2.')
 
-# Keep the official PKGBUILD intact and only add one source + one prepare step.
 s = s.replace('source=(', 'source=(\n  "' + patch + '"', 1)
 if 'sha256sums=(' not in s:
     raise SystemExit('Expected sha256sums array was not found.')
