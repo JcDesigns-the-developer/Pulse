@@ -1,15 +1,10 @@
 -- Pulse Ghost machine-local override template.
--- Copy to ~/.config/hypr/custom.lua.
--- Built-in Pulse modules load first; this file loads last.
---
--- Prefer the Pulse API below instead of reaching into Pulse's internal files.
--- This keeps your hardware and personal settings separate from the distro.
-
-local Pulse = require("pulse")
-local Theme = Pulse.load("theme")
+-- Copy this file to ~/.config/hypr/custom.lua.
+-- Pulse loads the normal modules first, then this file last.
+-- Put personal monitors, keybinds, rules, and hardware-specific changes here.
 
 -- Monitor example:
--- Pulse.monitor({
+-- hl.monitor({
 --     output = "DP-1",
 --     mode = "1920x1080@165",
 --     position = "0x0",
@@ -17,12 +12,18 @@ local Theme = Pulse.load("theme")
 -- })
 
 -- Personal bind example:
--- Pulse.command("SUPER + SHIFT + O", "your-command", {
---     description = "Run my command",
+-- hl.bind(
+--     "SUPER + SHIFT + O",
+--     hl.dsp.exec_cmd("your-command"),
+--     { description = "Run my command" }
+-- )
+
+-- Personal rule example:
+-- hl.window_rule({
+--     name = "my-floating-window",
+--     match = { class = "^my-app$" },
+--     float = true,
 -- })
 
--- Direct Hyprland API remains available when a feature is not wrapped yet:
--- Pulse.hl.bind("SUPER + SHIFT + P", Pulse.exec("your-command"))
-
--- Theme values are available without depending on the theme file path:
--- local foreground = Theme.color("foreground")
+-- The normal Pulse modules are still available with require(), for example:
+-- local theme = require("pulse.theme")
