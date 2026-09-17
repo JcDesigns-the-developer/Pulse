@@ -1,6 +1,6 @@
 -- Pulse core compositor settings.
--- Keep only global behavior here. Input, layout, appearance, rules, binds,
--- and startup are configured in their own files.
+-- Layout selection lives in layout.lua.
+-- Input, appearance, rules, binds, workspaces, and startup stay separate.
 
 hl.config({
     general = {
@@ -9,10 +9,6 @@ hl.config({
         border_size = 2,
         resize_on_border = true,
         allow_tearing = false,
-        layout = "dwindle",
-        snap = {
-            enabled = false,
-        },
     },
 
     misc = {
@@ -29,13 +25,6 @@ hl.config({
         hide_on_key_press = true,
         hide_on_touch = true,
         inactive_timeout = 5,
-    },
-
-    dwindle = {
-        pseudotile = true,
-        preserve_split = true,
-        smart_split = true,
-        smart_resizing = true,
     },
 
     xwayland = {
