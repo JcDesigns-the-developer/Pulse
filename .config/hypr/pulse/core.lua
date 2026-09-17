@@ -17,13 +17,10 @@ hl.config({
         mouse_move_enables_dpms = true,
         key_press_enables_dpms = true,
         focus_on_activate = true,
-        animate_manual_resizes = true,
-        animate_mouse_windowdragging = true,
     },
 
     cursor = {
         hide_on_key_press = true,
-        hide_on_touch = true,
         inactive_timeout = 5,
     },
 
