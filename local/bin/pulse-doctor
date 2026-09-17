@@ -23,7 +23,6 @@ for file in \
   "$HOME/.config/hypr/hyprland.lua" \
   "$HOME/.config/hypr/hypridle.conf" \
   "$HOME/.config/hypr/hyprlock.conf" \
-  "$HOME/.config/hypr/pulse/init.lua" \
   "$HOME/.config/hypr/pulse/theme.lua" \
   "$HOME/.config/hypr/pulse/settings.lua" \
   "$HOME/.config/hypr/pulse/binds.lua" \
