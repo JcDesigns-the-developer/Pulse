@@ -1,36 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONFIG_DIR="$HOME/.config"
-ENV_FILE="$CONFIG_DIR/pulse/pulse.conf"
-LOG_DIR="$HOME/.local/state/pulse"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pulse"
 LOG_FILE="$LOG_DIR/update.log"
-
 MODE="update"
+
 for arg in "$@"; do
   case "$arg" in
     -u|--update|-update) MODE="update" ;;
     -f|--fix|-fix|-fix/update) MODE="fix" ;;
     -h|--help|-help)
       cat <<'EOF'
-Pulse-Ware updater
+Pulse updater
 
 Usage:
-  pulse-update                 Check for and install normal updates
+  pulse-update                 Update the Pulse checkout and verify links
   pulse-update -update         Same as the normal update
-  pulse-update -fix            Force-repair the installed Pulse configuration
-  pulse-update -fix/update     Update the repo, then repair ALL Pulse-managed files
-  pulse-update --fix           Same as -fix
-
-Fix mode is intended for older Pulse installations. It refreshes the live
-configuration from the current main branch and repairs stale/deprecated files.
-A timestamped backup is created before the live configuration is replaced.
+  pulse-update -fix            Repair Pulse symlinks and managed permissions
+  pulse-update -fix/update     Update, then repair the installation
 EOF
       exit 0
       ;;
     *)
-      echo "Unknown option: $arg"
-      echo "Run 'pulse-update --help' for usage."
+      echo "Unknown option: $arg" >&2
       exit 2
       ;;
   esac
@@ -40,14 +32,10 @@ mkdir -p "$LOG_DIR"
 exec >>"$LOG_FILE" 2>&1
 
 echo
-printf '[%s] Pulse-Ware %s check\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$MODE"
+printf '[%s] Pulse %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$MODE"
 
-if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-fi
-
-REPO_DIR="${PULSE_REPO_DIR:-$HOME/Pulse}"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO_DIR="${PULSE_REPO_DIR:-$(cd "$(dirname "$SCRIPT_PATH")/../.." && pwd)}"
 
 if [[ ! -d "$REPO_DIR/.git" ]]; then
   echo "Repository not found: $REPO_DIR"
@@ -56,19 +44,13 @@ fi
 
 cd "$REPO_DIR"
 
-# A fix/update must never silently destroy uncommitted repository work.
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Local changes detected in $REPO_DIR; refusing automatic update."
-  echo "Commit/stash those changes first, then run pulse-update -fix/update again."
   exit 1
 fi
 
 before="$(git rev-parse HEAD)"
-if ! git fetch --quiet origin main; then
-  echo "Could not contact GitHub; will retry later."
-  exit 1
-fi
-
+git fetch --quiet origin main
 local="$(git rev-parse HEAD)"
 remote="$(git rev-parse origin/main)"
 
@@ -83,41 +65,51 @@ else
   echo "Repository is already current."
 fi
 
-# In normal mode, only apply the current repository state after an update.
-# In fix mode, always apply it, even when the repository was already current.
-if [[ "$MODE" == "fix" || "$MODE" == "update" ]]; then
-  BACKUP_DIR="$HOME/.config/pulse-fix-backup-$(date +%Y%m%d-%H%M%S)"
+repair_links() {
+  local backup_dir="$HOME/.local/state/pulse/backups/repair-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$backup_dir"
 
-  # Fix mode is specifically for stale/broken installs, so preserve the live
-  # Pulse-managed configuration before replacing it.
-  if [[ "$MODE" == "fix" ]]; then
-    mkdir -p "$BACKUP_DIR"
-    for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d pulse; do
-      if [[ -e "$CONFIG_DIR/$dir" ]]; then
-        cp -a "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
-      fi
-    done
-    echo "Live configuration backup: $BACKUP_DIR"
-  fi
+  link_one() {
+    local source="$1"
+    local target="$2"
 
-  # Sync every Pulse-managed config at once. cp -a also handles files added in
-  # newer revisions, which is important for migrating older installations.
-  if [[ -d "$REPO_DIR/.config" ]]; then
-    mkdir -p "$CONFIG_DIR"
-    cp -a "$REPO_DIR/.config/." "$CONFIG_DIR/"
-  fi
+    if [[ -L "$target" && "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
+      return
+    fi
+
+    if [[ -e "$target" || -L "$target" ]]; then
+      mkdir -p "$(dirname "$backup_dir/$target")"
+      mv "$target" "$backup_dir/$target"
+    fi
+
+    mkdir -p "$(dirname "$target")"
+    ln -s "$source" "$target"
+    echo "Linked $target -> $source"
+  }
+
+  local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+  for source in "$REPO_DIR/.config"/*; do
+    [[ -e "$source" ]] || continue
+    link_one "$source" "$config_dir/$(basename "$source")"
+  done
 
   mkdir -p "$HOME/.local/bin"
-  if [[ -d "$REPO_DIR/local/bin" ]]; then
-    cp -a "$REPO_DIR/local/bin/." "$HOME/.local/bin/"
-    chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
-  fi
+  for source in "$REPO_DIR/local/bin"/*; do
+    [[ -f "$source" ]] || continue
+    link_one "$source" "$HOME/.local/bin/$(basename "$source")"
+  done
 
-  chmod +x "$HOME/.local/bin/pulse-"* 2>/dev/null || true
+  chmod +x "$REPO_DIR/local/bin/"* "$REPO_DIR/.config/hypr/scripts/"* 2>/dev/null || true
 
-  if [[ "$MODE" == "fix" ]]; then
-    echo "ALL Pulse-managed configuration has been repaired from main."
+  if [[ -z "$(find "$backup_dir" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+    rmdir "$backup_dir" 2>/dev/null || true
   else
-    echo "Pulse-Ware configuration is current."
+    echo "Repair backup: $backup_dir"
   fi
+}
+
+if [[ "$MODE" == "fix" || "$MODE" == "update" ]]; then
+  repair_links
 fi
+
+echo "Pulse installation is using the repository as its source of truth."

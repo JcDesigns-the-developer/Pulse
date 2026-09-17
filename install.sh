@@ -18,7 +18,6 @@ fi
 
 echo "== Pulse Ghost $PULSE_VERSION =="
 echo "Readable dotfiles. Simple installer."
-
 echo
 
 if ! command -v pacman >/dev/null 2>&1; then
@@ -40,7 +39,7 @@ if [[ "$dry_run" == true ]]; then
         [[ -e "$path" ]] || continue
         printf '  ~/.config/%s -> %s\n' "$(basename "$path")" "$path"
     done
-    printf '  ~/.local/bin -> %s\n' "$REPO_DIR/local/bin"
+    printf '  ~/.local/bin/* -> %s/*\n' "$REPO_DIR/local/bin"
     exit 0
 fi
 
@@ -81,8 +80,6 @@ for source in "$REPO_DIR/local/bin"/*; do
 done
 chmod +x "$REPO_DIR/local/bin/"* "$REPO_DIR/.config/hypr/scripts/"* 2>/dev/null || true
 
-# Keep ~/.local/bin available in normal interactive shells without destroying
-# existing PATH entries. The line is intentionally idempotent.
 add_path_line() {
     local file="$1"
     touch "$file"
@@ -103,6 +100,7 @@ fi
 
 mkdir -p "$HOME/Pictures/Screenshots"
 
+# XDG_RUNTIME_DIR belongs to systemd-logind. Never create or fake it here.
 mkdir -p "$CONFIG_DIR/environment.d"
 cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<'EOF'
 XDG_SESSION_TYPE=wayland
@@ -110,12 +108,6 @@ XDG_CURRENT_DESKTOP=Hyprland
 DESKTOP_SESSION=pulse
 MOZ_ENABLE_WAYLAND=1
 ELECTRON_OZONE_PLATFORM_HINT=auto
-EOF
-
-mkdir -p "$CONFIG_DIR/pulse"
-cat > "$CONFIG_DIR/pulse/pulse.conf" <<EOF
-PULSE_REPO_DIR=$REPO_DIR
-PULSE_VERSION=$PULSE_VERSION
 EOF
 
 if command -v starship >/dev/null 2>&1; then
@@ -154,9 +146,9 @@ cat <<EOF
 Pulse Ghost $PULSE_VERSION installed.
 Backup: $BACKUP_DIR
 
-The repository is now the source of truth:
-  ~/.config/* -> $REPO_DIR/.config/*
-  ~/.local/bin/* -> $REPO_DIR/local/bin/*
+Repository is the source of truth:
+  ~/.config/*       -> $REPO_DIR/.config/*
+  ~/.local/bin/*    -> $REPO_DIR/local/bin/*
 
 Hyprland:
   ~/.config/hypr/hyprland.lua
@@ -181,5 +173,4 @@ Commands:
   pulse fix
 
 Log out and back in after installation so the new PATH is loaded.
-XDG_RUNTIME_DIR remains owned by systemd-logind; Pulse never creates it.
 EOF

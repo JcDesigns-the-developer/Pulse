@@ -45,9 +45,6 @@ for file in \
   "$HOME/.config/waybar/style.css" \
   "$HOME/.config/rofi/config.rasi" \
   "$HOME/.config/kitty/kitty.conf" \
-  "$HOME/.config/pulse/settings.conf" \
-  "$HOME/.config/pulse/theme.conf" \
-  "$HOME/.config/pulse/pulse.conf" \
   "$HOME/.config/hypr/wallpapers/pulse-ghost.svg"; do
   if [[ -f "$file" ]]; then
     pass "${file#$HOME/} exists"
@@ -80,10 +77,10 @@ else
   warn "Pulse update timer file is missing"
 fi
 
-if [[ -f "$HOME/.config/systemd/user/timers.target.wants/pulse-update.timer" ]]; then
-  pass "Pulse update timer is enabled"
+if [[ -L "$HOME/.local/bin/pulse" ]]; then
+  pass "Pulse commands are repository-linked"
 else
-  warn "Pulse update timer is not enabled"
+  warn "pulse command is not a repository symlink; run pulse fix"
 fi
 
 if command -v luac >/dev/null 2>&1; then
@@ -102,7 +99,7 @@ fi
 printf '\nSummary: %d OK, %d warnings, %d failures\n' "$ok" "$warn" "$fail"
 
 if (( fail > 0 )); then
-  printf 'Recommended repair: pulse fix/update\n'
+  printf 'Recommended repair: pulse fix\n'
   exit 1
 fi
 
