@@ -9,9 +9,15 @@ pass() { printf '  [OK]   %s\n' "$1"; ok=$((ok + 1)); }
 warn() { printf '  [WARN] %s\n' "$1"; warn=$((warn + 1)); }
 fail() { printf '  [FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 
-printf '== Pulse Doctor 3.0 ==\n\n'
+printf '== Pulse Doctor 3.1 ==\n\n'
 
-for cmd in hyprland hyprctl start-hyprland waybar rofi kitty mako nmcli iwctl swww wl-copy; do
+if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+  pass "~/.local/bin is in PATH"
+else
+  fail "~/.local/bin is not in PATH"
+fi
+
+for cmd in bash hyprland hyprctl start-hyprland waybar rofi kitty mako nmcli wl-copy; do
   if command -v "$cmd" >/dev/null 2>&1; then
     pass "$cmd is installed"
   else
@@ -21,12 +27,20 @@ done
 
 for file in \
   "$HOME/.config/hypr/hyprland.lua" \
+  "$HOME/.config/hypr/variables.lua" \
+  "$HOME/.config/hypr/environment.lua" \
+  "$HOME/.config/hypr/general.lua" \
+  "$HOME/.config/hypr/monitors.lua" \
+  "$HOME/.config/hypr/input.lua" \
+  "$HOME/.config/hypr/layout.lua" \
+  "$HOME/.config/hypr/decoration.lua" \
+  "$HOME/.config/hypr/animations.lua" \
+  "$HOME/.config/hypr/rules.lua" \
+  "$HOME/.config/hypr/workspaces.lua" \
+  "$HOME/.config/hypr/keybinds.lua" \
+  "$HOME/.config/hypr/startup.lua" \
   "$HOME/.config/hypr/hypridle.conf" \
   "$HOME/.config/hypr/hyprlock.conf" \
-  "$HOME/.config/hypr/pulse/theme.lua" \
-  "$HOME/.config/hypr/pulse/settings.lua" \
-  "$HOME/.config/hypr/pulse/binds.lua" \
-  "$HOME/.config/hypr/pulse/rules.lua" \
   "$HOME/.config/waybar/config.jsonc" \
   "$HOME/.config/waybar/style.css" \
   "$HOME/.config/rofi/config.rasi" \
@@ -51,19 +65,13 @@ fi
 if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
   pass "WAYLAND_DISPLAY is set to $WAYLAND_DISPLAY"
 else
-  warn "WAYLAND_DISPLAY is not set; doctor is probably running outside the desktop session"
+  warn "WAYLAND_DISPLAY is not set; doctor may be running outside the desktop session"
 fi
 
-if [[ -d "$HOME/.config/hypr" ]] && grep -Rni --include='*.conf' 'togglesplit' "$HOME/.config/hypr" >/dev/null 2>&1; then
-  warn "legacy togglesplit text remains in a .conf file; it is ignored by the Lua config but can confuse older fallbacks"
+if [[ -f "$HOME/.config/hypr/hypr-user.lua" ]]; then
+  pass "machine-local hypr-user.lua is present"
 else
-  pass "no legacy togglesplit binding found"
-fi
-
-if [[ -f "$HOME/.config/hypr/custom.lua" ]]; then
-  pass "machine-local custom.lua override is present"
-else
-  warn "no custom.lua override; Pulse defaults will be used"
+  warn "no hypr-user.lua override; Pulse defaults will be used"
 fi
 
 if [[ -f "$HOME/.config/systemd/user/pulse-update.timer" ]]; then
