@@ -1,5 +1,5 @@
--- Conservative rules: only applications that are known to behave like utility
--- windows are forced floating. Everything else remains under user control.
+-- Conservative application rules.
+-- Unknown applications are left completely under normal Hyprland behavior.
 
 hl.window_rule({
     name = "pulse-floating-dialogs",

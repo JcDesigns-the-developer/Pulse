@@ -1,4 +1,4 @@
--- Input policy. Keep keyboard/mouse behavior separate from compositor styling.
+-- Keyboard and pointer behavior.
 
 hl.config({
     input = {

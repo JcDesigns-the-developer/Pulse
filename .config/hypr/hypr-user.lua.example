@@ -1,0 +1,23 @@
+-- Machine-local Hyprland changes.
+-- Copy this file to ~/.config/hypr/hypr-user.lua.
+-- Pulse never overwrites the real hypr-user.lua.
+
+-- Monitor example:
+-- hl.monitor({
+--     output = "DP-1",
+--     mode = "1920x1080@165",
+--     position = "0x0",
+--     scale = 1,
+-- })
+
+-- Personal bind example:
+-- hl.bind("SUPER + SHIFT + O", hl.dsp.exec_cmd("your-command"), {
+--     description = "Run my command",
+-- })
+
+-- Personal rule example:
+-- hl.window_rule({
+--     name = "my-floating-window",
+--     match = { class = "^my-app$" },
+--     float = true,
+-- })

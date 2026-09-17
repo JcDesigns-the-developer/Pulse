@@ -1,4 +1,4 @@
--- Pulse animation policy.
+-- Animation settings.
 
 hl.config({
     animations = {
@@ -18,6 +18,6 @@ hl.animation({ leaf = "global", enabled = true, speed = 8, curve = "default" })
 hl.animation({ leaf = "windows", enabled = true, speed = 5, curve = "pulseEase" })
 hl.animation({ leaf = "windowsIn", enabled = true, speed = 5, curve = "pulseEase", style = "popin 85%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 5, curve = "pulseEase", style = "popin 85%" })
-hl.animation({ leaf = "border", enabled = true, speed = 5, curve = "pulseEase" })
-hl.animation({ leaf = "fade", enabled = true, speed = 5, curve = "pulseEase" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 6, curve = "pulseEase", style = "slide" })
+hl.animation({ leaf = "border", enabled = true, speed = 5, curve = "default" })
+hl.animation({ leaf = "fade", enabled = true, speed = 5, curve = "default" })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 5, curve = "default" })

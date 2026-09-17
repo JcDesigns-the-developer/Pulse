@@ -1,6 +1,4 @@
--- Pulse core compositor settings.
--- Layout selection lives in layout.lua.
--- Input, appearance, rules, binds, workspaces, and startup stay separate.
+-- Core Hyprland settings.
 
 hl.config({
     general = {

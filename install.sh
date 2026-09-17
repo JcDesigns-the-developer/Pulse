@@ -2,50 +2,107 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$HOME/.config"
-BACKUP_DIR="$HOME/.config/pulse-backup-$(date +%Y%m%d-%H%M%S)"
-PULSE_VERSION="3.0.0"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+BACKUP_DIR="$HOME/.local/state/pulse/backups/$(date +%Y%m%d-%H%M%S)"
+PULSE_VERSION="3.1.0"
 
 packages=()
 while IFS= read -r pkg; do
-  [[ -n "$pkg" && "$pkg" != \#* ]] && packages+=("$pkg")
+    [[ -n "$pkg" && "$pkg" != \#* ]] && packages+=("$pkg")
 done < "$REPO_DIR/packages.txt"
 
-echo "== Pulse Ghost installer $PULSE_VERSION =="
-echo "Installing the Pulse desktop stack and control tools."
+dry_run=false
+if [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]]; then
+    dry_run=true
+fi
+
+echo "== Pulse Ghost $PULSE_VERSION =="
+echo "Readable dotfiles. Simple installer."
+
+echo
 
 if ! command -v pacman >/dev/null 2>&1; then
-  echo "Pulse currently targets Arch Linux / EndeavourOS."
-  exit 1
+    echo "Pulse currently targets Arch Linux / EndeavourOS."
+    exit 1
+fi
+
+if [[ "$dry_run" == true ]]; then
+    echo "DRY RUN - nothing will be changed."
+    echo
+    printf 'Packages:\n'
+    printf '  + %s\n' "${packages[@]}"
+    echo
+    printf 'Config source:\n  %s\n' "$REPO_DIR/.config"
+    printf 'Local commands:\n  %s\n' "$REPO_DIR/local/bin"
+    echo
+    printf 'Would link:\n'
+    for path in "$REPO_DIR/.config"/*; do
+        [[ -e "$path" ]] || continue
+        printf '  ~/.config/%s -> %s\n' "$(basename "$path")" "$path"
+    done
+    printf '  ~/.local/bin -> %s\n' "$REPO_DIR/local/bin"
+    exit 0
 fi
 
 sudo pacman -Syu --needed "${packages[@]}"
 
-mkdir -p "$BACKUP_DIR"
-for dir in hypr waybar rofi kitty mako hyprlock hypridle gtk-3.0 gtk-4.0 qt5ct qt6ct environment.d pulse systemd; do
-  if [[ -e "$CONFIG_DIR/$dir" ]]; then
-    mv "$CONFIG_DIR/$dir" "$BACKUP_DIR/$dir"
-  fi
+mkdir -p "$BACKUP_DIR" "$HOME/.local/state/pulse" "$HOME/.local/bin"
+
+backup_path() {
+    local target="$1"
+    [[ -e "$target" || -L "$target" ]] || return 0
+    mkdir -p "$(dirname "$BACKUP_DIR/$target")"
+    mv "$target" "$BACKUP_DIR/$target"
+}
+
+link_path() {
+    local source="$1"
+    local target="$2"
+
+    if [[ -L "$target" && "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
+        return
+    fi
+
+    backup_path "$target"
+    mkdir -p "$(dirname "$target")"
+    ln -s "$source" "$target"
+}
+
+# The repository is the source of truth, like a normal dotfiles checkout.
+for source in "$REPO_DIR/.config"/*; do
+    [[ -e "$source" ]] || continue
+    link_path "$source" "$CONFIG_DIR/$(basename "$source")"
 done
 
-cp -a "$REPO_DIR/.config/." "$CONFIG_DIR/"
-mkdir -p "$HOME/.local/bin"
-if [[ -d "$REPO_DIR/local/bin" ]]; then
-  cp -a "$REPO_DIR/local/bin/." "$HOME/.local/bin/"
-  chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
+# Commands are linked instead of copied, so git pull updates the installed tools.
+for source in "$REPO_DIR/local/bin"/*; do
+    [[ -f "$source" ]] || continue
+    link_path "$source" "$HOME/.local/bin/$(basename "$source")"
+done
+chmod +x "$REPO_DIR/local/bin/"* "$REPO_DIR/.config/hypr/scripts/"* 2>/dev/null || true
+
+# Keep ~/.local/bin available in normal interactive shells without destroying
+# existing PATH entries. The line is intentionally idempotent.
+add_path_line() {
+    local file="$1"
+    touch "$file"
+    grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$file" 2>/dev/null || \
+        printf '\n# Pulse local commands\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$file"
+}
+
+add_path_line "$HOME/.bashrc"
+if [[ -f "$HOME/.zshrc" || "${SHELL:-}" == */zsh ]]; then
+    add_path_line "$HOME/.zshrc"
 fi
 
 wayland_sessions="$HOME/.local/share/wayland-sessions"
 mkdir -p "$wayland_sessions"
 if [[ -f "$REPO_DIR/session/pulse.desktop" ]]; then
-  cp -f "$REPO_DIR/session/pulse.desktop" "$wayland_sessions/pulse.desktop"
+    cp -f "$REPO_DIR/session/pulse.desktop" "$wayland_sessions/pulse.desktop"
 fi
 
 mkdir -p "$HOME/Pictures/Screenshots"
 
-# XDG_RUNTIME_DIR is owned and created by systemd-logind. Pulse deliberately
-# does not manufacture it in environment.d because doing so can break PipeWire,
-# D-Bus, and graphical sessions.
 mkdir -p "$CONFIG_DIR/environment.d"
 cat > "$CONFIG_DIR/environment.d/90-pulse.conf" <<'EOF'
 XDG_SESSION_TYPE=wayland
@@ -62,8 +119,9 @@ PULSE_VERSION=$PULSE_VERSION
 EOF
 
 if command -v starship >/dev/null 2>&1; then
-  touch "$HOME/.bashrc"
-  grep -qxF 'eval "$(starship init bash)"' "$HOME/.bashrc" 2>/dev/null || echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
+    touch "$HOME/.bashrc"
+    grep -qxF 'eval "$(starship init bash)"' "$HOME/.bashrc" 2>/dev/null || \
+        echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
 fi
 
 autostart_dir="$CONFIG_DIR/autostart"
@@ -82,44 +140,46 @@ mkdir -p "$timer_dir"
 ln -sfn ../pulse-update.timer "$timer_dir/pulse-update.timer"
 
 if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-  systemctl --user daemon-reload || true
-  systemctl --user enable --now pulse-update.timer || true
-  systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
+    systemctl --user daemon-reload || true
+    systemctl --user enable --now pulse-update.timer || true
+    systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service || true
 else
-  echo "Skipping immediate user-systemd activation: no user D-Bus session is available."
-  echo "The Pulse updater will activate after the next graphical user login."
+    echo "Skipping immediate user-systemd activation: no user D-Bus session is available."
 fi
 
 sudo systemctl enable --now NetworkManager.service || true
-
-chmod +x "$REPO_DIR"/local/bin/* "$REPO_DIR"/.config/hypr/scripts/* 2>/dev/null || true
 
 cat <<EOF
 
 Pulse Ghost $PULSE_VERSION installed.
 Backup: $BACKUP_DIR
 
-CONTROL COMMANDS:
-  pulse                  Control menu
-  pulse start            Start through start-hyprland
-  pulse network          Wi-Fi/network control
-  pulse settings         Settings
-  pulse doctor           Diagnostics
-  pulse fix/update       Update + repair
+The repository is now the source of truth:
+  ~/.config/* -> $REPO_DIR/.config/*
+  ~/.local/bin/* -> $REPO_DIR/local/bin/*
 
-LUA ARCHITECTURE:
-  .config/hypr/hyprland.lua is the entry point.
-  .config/hypr/pulse/init.lua owns module loading and the Pulse API.
-  ~/.config/hypr/custom.lua is the machine-local override layer.
+Hyprland:
+  ~/.config/hypr/hyprland.lua
+  ~/.config/hypr/variables.lua
+  ~/.config/hypr/general.lua
+  ~/.config/hypr/monitors.lua
+  ~/.config/hypr/input.lua
+  ~/.config/hypr/layout.lua
+  ~/.config/hypr/decoration.lua
+  ~/.config/hypr/animations.lua
+  ~/.config/hypr/rules.lua
+  ~/.config/hypr/workspaces.lua
+  ~/.config/hypr/keybinds.lua
+  ~/.config/hypr/startup.lua
+  ~/.config/hypr/hypr-user.lua  (optional, never overwritten)
 
-AUTO UPDATE:
-  Pulse checks GitHub main every 30 minutes.
-  Update log: ~/.local/state/pulse/update.log
+Commands:
+  pulse
+  pulse start
+  pulse doctor
+  pulse update
+  pulse fix
 
-IMPORTANT:
-  XDG_RUNTIME_DIR is supplied by systemd-logind; Pulse does not create it.
-  Do not run Hyprland with sudo.
-
-Log out and back in after installation, then choose Pulse in your display
-manager or run 'pulse-session' from a properly initialized systemd user TTY.
+Log out and back in after installation so the new PATH is loaded.
+XDG_RUNTIME_DIR remains owned by systemd-logind; Pulse never creates it.
 EOF

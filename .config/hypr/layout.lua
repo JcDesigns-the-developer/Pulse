@@ -1,4 +1,4 @@
--- Pulse layout policy.
+-- Window layout.
 
 hl.config({
     general = {

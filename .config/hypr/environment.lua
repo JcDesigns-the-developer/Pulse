@@ -1,4 +1,4 @@
-local theme = require("pulse.theme")
+-- Session environment. Keep this separate from visual settings.
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
@@ -11,4 +11,3 @@ hl.env("GDK_BACKEND", "wayland,x11")
 hl.env("SDL_VIDEODRIVER", "wayland,x11")
 hl.env("XCURSOR_THEME", "Adwaita")
 hl.env("HYPRCURSOR_THEME", "Adwaita")
-hl.env("PULSE_THEME_BACKGROUND", theme.black)

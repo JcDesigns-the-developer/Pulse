@@ -1,9 +1,8 @@
--- Pulse keybindings.
--- Application launches use the central app registry. Compositor actions use
--- Hyprland's native Lua dispatchers so the config stays easy to understand.
+-- Keybindings. Commands are kept visible here instead of hidden behind a Pulse API.
 
-local apps = require("pulse.apps")
 local mod = "SUPER"
+local home = os.getenv("HOME")
+local bin = home .. "/.local/bin/"
 
 local function bind(key, dispatcher, description, flags)
     flags = flags or {}
@@ -11,17 +10,16 @@ local function bind(key, dispatcher, description, flags)
     hl.bind(mod .. " + " .. key, dispatcher, flags)
 end
 
-bind("Return", hl.dsp.exec_cmd(apps.terminal), "Open terminal")
-bind("D", hl.dsp.exec_cmd(apps.launcher), "Open application launcher")
-bind("E", hl.dsp.exec_cmd(apps.file_manager), "Open file manager")
-bind("N", hl.dsp.exec_cmd(apps.network), "Open Pulse network control")
-bind("P", hl.dsp.exec_cmd(apps.settings), "Open Pulse settings")
-bind("W", hl.dsp.exec_cmd(apps.wallpaper), "Change Pulse wallpaper")
+bind("Return", hl.dsp.exec_cmd(PULSE.terminal), "Open terminal")
+bind("D", hl.dsp.exec_cmd(PULSE.launcher), "Open application launcher")
+bind("E", hl.dsp.exec_cmd(PULSE.file_manager), "Open file manager")
+bind("N", hl.dsp.exec_cmd(PULSE.network), "Open network control")
+bind("P", hl.dsp.exec_cmd(PULSE.settings), "Open Pulse settings")
+bind("W", hl.dsp.exec_cmd(PULSE.wallpaper), "Change wallpaper")
 bind("F", hl.dsp.window.fullscreen(), "Toggle fullscreen")
 bind("Q", hl.dsp.window.close(), "Close active window")
 bind("V", hl.dsp.window.float(), "Toggle floating")
-bind("L", hl.dsp.exec_cmd(apps.lock), "Lock screen")
-
+bind("L", hl.dsp.exec_cmd(PULSE.lock), "Lock screen")
 bind("Tab", hl.dsp.window.cycle_next(), "Cycle windows")
 
 hl.bind("ALT + mouse:272", hl.dsp.window.drag(), {
@@ -86,6 +84,6 @@ hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), {
     description = "Next track",
 })
 
-hl.bind("Print", hl.dsp.exec_cmd(apps.screenshot), {
+hl.bind("Print", hl.dsp.exec_cmd(bin .. PULSE.screenshot), {
     description = "Take screenshot",
 })

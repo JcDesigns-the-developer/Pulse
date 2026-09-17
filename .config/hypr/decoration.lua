@@ -1,6 +1,5 @@
-local theme = require("pulse.theme")
+-- Window decoration and Pulse's monochrome palette.
 
--- Window appearance. Keep colors here tied to the Pulse palette.
 hl.config({
     decoration = {
         rounding = 7,
@@ -12,7 +11,7 @@ hl.config({
             enabled = true,
             range = 8,
             render_power = 3,
-            color = tonumber("0x" .. theme.black_deep .. "cc"),
+            color = tonumber("0x" .. PULSE.colors.black_deep .. "cc"),
         },
         blur = {
             enabled = true,
@@ -24,8 +23,11 @@ hl.config({
 
     general = {
         col = {
-            active_border = theme.rgba(theme.white, "ee"),
-            inactive_border = theme.rgba(theme.gray_dark, "aa"),
+            active_border = {
+                colors = { pulse_rgba(PULSE.colors.white, "ee") },
+                angle = 45,
+            },
+            inactive_border = pulse_rgba(PULSE.colors.gray_dark, "aa"),
         },
     },
 })
